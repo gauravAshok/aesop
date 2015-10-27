@@ -40,7 +40,7 @@ public class RedisReplicator {
 		this.masterRunId = "?";
 		this.initBacklogOffset = -1;
 		
-		this.streamOpTimeout = 4000;				// blocking stream operation timeout
+		this.streamOpTimeout = 10000;				// blocking stream operation timeout
 	}
 	
 	/**
