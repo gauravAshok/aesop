@@ -106,6 +106,7 @@
         <module>samples/sample-kafka-client-cluster-consumer</module>
         <module>samples/sample-diff-relay</module>
         <module>samples/sample-mapper-processor-nesting-client</module>
+        <module>replicators/redis-replication</module>
     </modules>
 
 
