@@ -109,6 +109,7 @@ public class RDBParser {
         public int type;	/* redis data types */
         byte success;
         public int expire; /* 过期时间 , milliseconds*/
+        public long streamOffset;
     }
 
 
@@ -659,6 +660,7 @@ public class RDBParser {
         }
         if (entry.type == REDIS_EOF)
             return null;
+        entry.streamOffset = bytesRead - streamLength;
         return entry;
     }
     

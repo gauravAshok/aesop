@@ -10,10 +10,8 @@ import redis.clients.jedis.Jedis;
 
 import com.flipkart.redis.event.BacklogEventListener;
 import com.flipkart.redis.event.CommandEvent;
-import com.flipkart.redis.event.DataEvent;
 import com.flipkart.redis.event.Datatype;
-import com.flipkart.redis.net.Connection;
-import com.flipkart.redis.net.Protocol.Command;
+import com.flipkart.redis.event.RDBDataEvent;
 import com.flipkart.redis.replicator.RedisReplicator;
 
 class TestListener implements BacklogEventListener 
@@ -23,7 +21,7 @@ class TestListener implements BacklogEventListener
 	
 	@Override
 	public void onEvent(CommandEvent event) {
-		System.out.print(event.getMasterBacklogOffset() + " : " + event.getCommand() + " ");
+		System.out.print(event.getHeader().getMasterBacklogOffset() + " : " + event.getCommand() + " ");
 		for(String o : event.getArgs()) {
 			System.out.print(o + " ");
 		}
@@ -33,7 +31,7 @@ class TestListener implements BacklogEventListener
 	}
 
 	@Override
-	public void onEvent(DataEvent event) {
+	public void onEvent(RDBDataEvent event) {
 		System.out.print("dump: " + event.getDatabase() + ": " + event.getType() + ": " + event.getKey() + " : " + event.getValue().toString());
 		if(event.getType() == Datatype.STRING) {
 			byte[] val = ((String)event.getValue()).getBytes();

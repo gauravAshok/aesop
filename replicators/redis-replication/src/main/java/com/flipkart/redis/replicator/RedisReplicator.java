@@ -16,7 +16,14 @@ public class RedisReplicator {
 	private String host;
 	private String password;
 	
+	/**
+	 * For partial sync, masterRunId can be looked up by running "info server" in redis-cli 
+	 */
 	private String masterRunId;
+	
+	/**
+	 * For partial sync, current master_repl_offset can be looked up by running "info replication" in redis-cli 
+	 */
 	private long initBacklogOffset;
 	private Connection connection;
 	private int streamOpTimeout;
@@ -68,7 +75,7 @@ public class RedisReplicator {
 		
 		if(syncStatus.startsWith("CONTINUE")) {
 			// psync successful
-			SyncTask task = new SyncTask(connection, eventListener, initBacklogOffset);
+			SyncTask task = new SyncTask(connection, eventListener, masterRunId, initBacklogOffset);
 			worker = new Thread(task);
 			worker.start();
 		}
@@ -78,7 +85,7 @@ public class RedisReplicator {
 			masterRunId = statusStrTokens[1];
 			initBacklogOffset = Long.parseLong(statusStrTokens[2]);
 			
-			FullSyncTask task = new FullSyncTask(this.connection, eventListener, initBacklogOffset);
+			FullSyncTask task = new FullSyncTask(this.connection, eventListener, masterRunId, initBacklogOffset);
 			worker = new Thread(task);
 			worker.start();
 		}

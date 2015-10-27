@@ -10,6 +10,7 @@ import rx.observables.ConnectableObservable;
 
 import com.flipkart.redis.event.BacklogEventListener;
 import com.flipkart.redis.event.CommandEvent;
+import com.flipkart.redis.event.EventHeader;
 import com.flipkart.redis.net.Connection;
 import com.flipkart.redis.net.Reply;
 
@@ -24,9 +25,11 @@ class SyncTask implements Runnable {
 	
 	Connection connection;
 	BacklogEventListener eventListener;
+	
+	String masterId;
 	long masterBacklogOffset;
 	
-	public SyncTask(Connection connection, BacklogEventListener listener, long masterbacklogOffset) {
+	public SyncTask(Connection connection, BacklogEventListener listener, String masterId, long masterbacklogOffset) {
 		this.connection = connection;
 		this.eventListener = listener;
 		this.masterBacklogOffset = masterbacklogOffset;
@@ -52,15 +55,16 @@ class SyncTask implements Runnable {
 				
 				masterBacklogOffset += cmd.bytesRead;
 				
-				List<String> args = cmd.object.subList(1, cmd.object.size());
-				
 				// if command is ping, send the replication ack
 				if(cmd.object.get(0).equals("PING")) {
 					logger.debug("PING: replconf ack " + masterBacklogOffset);
 					connection.sendReplAck(masterBacklogOffset);
 				}
 				else {
-					CommandEvent cmdEvent = new CommandEvent(cmd.object.get(0), args, masterBacklogOffset);
+					List<String> args = cmd.object.subList(2, cmd.object.size());
+					
+					EventHeader header = new EventHeader(masterId, masterBacklogOffset);
+					CommandEvent cmdEvent = new CommandEvent(cmd.object.get(0), cmd.object.get(1), args, header);
 					eventListener.onEvent(cmdEvent);
 				}
 			}

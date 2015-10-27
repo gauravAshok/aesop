@@ -2,25 +2,50 @@ package com.flipkart.redis.event;
 
 import java.util.List;
 
-public class CommandEvent {
+/**
+ * Event for command and its arguments. Optionally it may also contain the whole data for key.
+ * @author gaurav.ashok
+ */
+public class CommandEvent extends AbstractEvent {
 	
 	String command;
+	String key;
 	List<String> args;
-	long masterBacklogOffset;
 	
-	public CommandEvent(String command, List<String> args, long masterBacklogOffset) {
+	Object value;
+	Datatype type;
+	
+	public CommandEvent(String command, String key, List<String> args, Object value, Datatype type,
+			EventHeader header) {
+		super(header);
 		this.command = command;
+		this.key = key;
 		this.args = args;
-		this.masterBacklogOffset = masterBacklogOffset;
+		this.value = value;
+		this.type = type;
+	}
+	
+	public CommandEvent(String command, String key, List<String> args,
+			EventHeader header) {
+		this(command, key, args, null, null, header);
 	}
 	
 	public String getCommand() {
 		return command;
 	}
+	public String getKey() {
+		return key;
+	}
 	public List<String> getArgs() {
 		return args;
 	}
-	public long getMasterBacklogOffset() {
-		return masterBacklogOffset;
+	public Object getValue() {
+		return value;
+	}
+	public Datatype getType() {
+		return type;
+	}
+	public boolean isDataPresent() {
+		return value != null;
 	}
 }
