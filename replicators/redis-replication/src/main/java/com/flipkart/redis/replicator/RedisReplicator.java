@@ -1,12 +1,32 @@
 package com.flipkart.redis.replicator;
 
-import com.flipkart.redis.event.BacklogEventListener;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import com.flipkart.redis.event.generator.AbstractEventGenerator;
+import com.flipkart.redis.event.generator.CommandEventGenerator;
+import com.flipkart.redis.event.generator.KeyValueEventGenerator;
+import com.flipkart.redis.event.generator.RDBDataEventGenerator;
+import com.flipkart.redis.event.listener.BacklogEventListener;
 import com.flipkart.redis.net.Connection;
+import com.flipkart.redis.net.KeyUpdateObservableMapper;
+import com.flipkart.redis.net.KeyUpdateObservableMapper.KeyTypePair;
+import com.flipkart.redis.net.Reply;
+import com.flipkart.redis.net.rdb.RDBParser.Entry;
+import com.flipkart.redis.replicator.state.ReplicatorState;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import redis.clients.jedis.exceptions.JedisException;
+import rx.Observable;
+import rx.functions.Action1;
+import rx.observables.ConnectableObservable;
 
 public class RedisReplicator {
 	
@@ -31,9 +51,16 @@ public class RedisReplicator {
 	private BacklogEventListener eventListener;
 	
 	/**
-	 * worker thread for replication task.
+	 * executorService for replication task.
 	 */
-	private Thread worker;
+	private ExecutorService singleThreadExecService = null;
+	private ScheduledExecutorService scheduledExecService = null;
+	
+	private List<Future<?>> submittedReplicationTasks = null;
+	
+	private ReplicatorState currentState;
+	
+	private boolean eventsForFullDataOnUpdate = false;
 	
 	public RedisReplicator() {
 		this("127.0.0.1", 6379);
@@ -48,6 +75,11 @@ public class RedisReplicator {
 		this.initBacklogOffset = -1;
 		
 		this.streamOpTimeout = 10000;				// blocking stream operation timeout
+		
+		scheduledExecService = Executors.newSingleThreadScheduledExecutor();
+		singleThreadExecService = Executors.newSingleThreadExecutor();
+		
+		submittedReplicationTasks = new ArrayList<Future<?>>();
 	}
 	
 	/**
@@ -62,7 +94,7 @@ public class RedisReplicator {
 		connection.connect();
 		
 		if(!connection.isConnected()) {
-			throw new JedisException("Could not connect");
+			throw new RuntimeException("Could not connect");
 		}
 		
 		// authenticate
@@ -72,34 +104,99 @@ public class RedisReplicator {
 		
 		// request psync
 		String syncStatus = connection.requestForPSync(masterRunId, initBacklogOffset + 1);
+		String[] statusStrTokens = syncStatus.split(" ");
 		
-		if(syncStatus.startsWith("CONTINUE")) {
-			// psync successful
-			SyncTask task = new SyncTask(connection, eventListener, masterRunId, initBacklogOffset);
-			worker = new Thread(task);
-			worker.start();
-		}
-		else if(syncStatus.startsWith("FULLRESYNC")) {
-			// partial sync failed. fullresync will be performed.
-			String[] statusStrTokens = syncStatus.split(" ");
+		String syncType = statusStrTokens[0];
+		
+		if(syncType.startsWith("FULLRESYNC")) {
 			masterRunId = statusStrTokens[1];
 			initBacklogOffset = Long.parseLong(statusStrTokens[2]);
-			
-			FullSyncTask task = new FullSyncTask(this.connection, eventListener, masterRunId, initBacklogOffset);
-			worker = new Thread(task);
-			worker.start();
 		}
+		
+		currentState = new ReplicatorState(masterRunId, initBacklogOffset);
+		
+		scheduleReplOffsetTellerTask();
+		startReplicatorThread(syncType);
 		
 		logger.info("replication started, status: " + syncStatus);
 	}
 	
-	public void stop() {
+	private void startReplicatorThread(String syncType) {
+
+		// if psync successful
+		if(syncType.startsWith("CONTINUE")) {
+			startPartialReplicationTask();
+		}
+		// if partial sync failed. fullresync will be performed.
+		else if(syncType.startsWith("FULLRESYNC")) {
+			startRDBReplicationTask();
+			startPartialReplicationTask();
+		}
+	}
+	
+	private void startRDBReplicationTask() {
+		final Observable<Entry> rdbObservable = connection.getRdbDump();
+		ConnectableObservable<Entry> connectableRDBObservable = rdbObservable.publish();
+		
+		connectableRDBObservable.subscribe(new RDBDataEventGenerator(eventListener, currentState));
+		
+		submittedReplicationTasks.add(singleThreadExecService.submit(connectInRunnable(connectableRDBObservable)));
+	}
+	
+	private void startPartialReplicationTask() {
+		final Observable<Reply<List<String>>> cmdEvents = connection.getCommands();
+		
+		if(eventsForFullDataOnUpdate) {
+			
+			final KeyUpdateObservableMapper keyUpdateObservableMapper = new KeyUpdateObservableMapper();
+			ConnectableObservable<Reply<KeyTypePair>> keyUpdates = cmdEvents.concatMap(e -> keyUpdateObservableMapper.map(e)).publish();
+			
+			keyUpdates.subscribe(new KeyValueEventGenerator(eventListener, currentState, host, port, streamOpTimeout));
+			
+			submittedReplicationTasks.add(singleThreadExecService.submit(connectInRunnable(keyUpdates)));
+		}
+		else {
+			ConnectableObservable<Reply<List<String>>> cmdEventsConnectableObs = cmdEvents.publish();
+			cmdEventsConnectableObs.subscribe(new CommandEventGenerator(eventListener, currentState));
+			
+			submittedReplicationTasks.add(singleThreadExecService.submit(connectInRunnable(cmdEventsConnectableObs)));
+		}
+	}
+	
+	/**
+	 * schedule a task that tells the master its own replication offset every second
+	 */
+	private void scheduleReplOffsetTellerTask()
+	{
+		Runnable offsetTellerTask = new Runnable() {
+			public void run() {
+				connection.sendReplAck(currentState.getReplicationOffset());
+			}
+		};
+		
+		scheduledExecService.scheduleAtFixedRate(offsetTellerTask, 0, 3, TimeUnit.SECONDS);
+	}
+	
+	private <T> Runnable connectInRunnable(ConnectableObservable<T> observable) {
+		return new Runnable() {
+			public void run() {
+				observable.connect();
+			}
+		};
+	}
+	
+	public void stop() throws InterruptedException {
+		scheduledExecService.shutdownNow();
+		scheduledExecService.awaitTermination(5, TimeUnit.SECONDS);
+		
 		//close the connection. it will also stop the worker thread
 		connection.close();
 	}
 	
-	public void joinOnReplicationTask() throws InterruptedException {
-		worker.join();
+	public void joinOnReplicationTask() throws ExecutionException, InterruptedException {
+		for(Future<?> f : submittedReplicationTasks) {
+			f.get();
+		}
 	}
 
 	public String getPassword() {
@@ -148,5 +245,9 @@ public class RedisReplicator {
 
 	public void setEventListener(BacklogEventListener eventListener) {
 		this.eventListener = eventListener;
+	}
+	
+	public void setEventsForFullDataOnUpdate(boolean status) {
+		eventsForFullDataOnUpdate = status;
 	}
 }

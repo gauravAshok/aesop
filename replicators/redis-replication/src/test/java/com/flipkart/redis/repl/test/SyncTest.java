@@ -3,15 +3,16 @@ package com.flipkart.redis.repl.test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
 import org.junit.Test;
 
 import redis.clients.jedis.Jedis;
 
-import com.flipkart.redis.event.BacklogEventListener;
 import com.flipkart.redis.event.CommandEvent;
-import com.flipkart.redis.event.Datatype;
-import com.flipkart.redis.event.RDBDataEvent;
+import com.flipkart.redis.event.DataEvent;
+import com.flipkart.redis.event.listener.BacklogEventListener;
+import com.flipkart.redis.net.Datatype;
 import com.flipkart.redis.replicator.RedisReplicator;
 
 class TestListener implements BacklogEventListener 
@@ -21,7 +22,8 @@ class TestListener implements BacklogEventListener
 	
 	@Override
 	public void onEvent(CommandEvent event) {
-		System.out.print(event.getHeader().getMasterBacklogOffset() + " : " + event.getCommand() + " ");
+		System.out.print(Thread.currentThread().getId() + " > ");
+		System.out.print(event.getHeader().getMasterBacklogOffset() + " : " + event.getCommand() + " " + event.getKey() + " ");
 		for(String o : event.getArgs()) {
 			System.out.print(o + " ");
 		}
@@ -31,8 +33,9 @@ class TestListener implements BacklogEventListener
 	}
 
 	@Override
-	public void onEvent(RDBDataEvent event) {
-		System.out.print("dump: " + event.getDatabase() + ": " + event.getType() + ": " + event.getKey() + " : " + event.getValue().toString());
+	public void onEvent(DataEvent event) {
+		System.out.print(Thread.currentThread().getId() + " > ");
+		System.out.print("dump: " + event.getDatabase() + ": " + event.getType() + ": " + event.getKey() + " : " + event.getValue().toString() + " Offset: " + event.getHeader().getMasterBacklogOffset());
 		if(event.getType() == Datatype.STRING) {
 			byte[] val = ((String)event.getValue()).getBytes();
 			
@@ -56,7 +59,7 @@ class TestListener implements BacklogEventListener
 public class SyncTest {
 	
 	
-    public void testFullSync() throws InterruptedException
+    public void testFullSync() throws InterruptedException, ExecutionException
     {
 		RedisReplicator replicator = new RedisReplicator("127.0.0.1", 6379);
 		//replicator.setPassword("password");
@@ -81,15 +84,13 @@ public class SyncTest {
 	@Test
     public void testFullSyncWithHugeDataAndRDBProcessing() throws Exception
     {
-//		Jedis conn = new Jedis("127.0.0.1", 6379);
-//		conn.connect();
-		
-		//generateData(conn, 0, 100);
+		System.out.println(Thread.currentThread().getId());
 		
 		RedisReplicator replicator = new RedisReplicator("127.0.0.1", 6379);
 		//replicator.setPassword("password");
 		replicator.setEventListener(new TestListener());
 		replicator.setStreamOpTimeout(7000);
+		replicator.setEventsForFullDataOnUpdate(true);
 		
 //		try partial sync
 //		replicator.setMasterId("082b879a177a445304b3074fe3442dbc10f169ba");
@@ -101,12 +102,6 @@ public class SyncTest {
 			System.out.println("unexpected things happened. look into it.");
 			e.printStackTrace();
 		}
-		
-//		while(true) {
-//			Thread.sleep(100);
-//			System.out.println("count: " + TestListener.dataEventsCount);
-//			if(TestListener.dataEventsCount == 1000000) break;
-//		}
 		
 		replicator.joinOnReplicationTask();
     }

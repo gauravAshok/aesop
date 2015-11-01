@@ -1,60 +1,52 @@
-package com.flipkart.redis.replicator;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import rx.Subscriber;
-import rx.observables.ConnectableObservable;
-
-import com.flipkart.redis.event.BacklogEventListener;
-import com.flipkart.redis.event.Datatype;
-import com.flipkart.redis.event.EventHeader;
-import com.flipkart.redis.event.RDBDataEvent;
-import com.flipkart.redis.net.Connection;
-import com.flipkart.redis.net.rdb.RDBParser.Entry;
-
-class FullSyncTask extends SyncTask {
-	
-	private static final Logger logger = LoggerFactory.getLogger(FullSyncTask.class);
-	
-	private static final Datatype[] int2DataTypeMapping = { 
-		Datatype.STRING, Datatype.LIST, Datatype.SET, Datatype.ZSET, 
-		Datatype.HASH, null, null, null, null, Datatype.HASH, Datatype.LIST, Datatype.SET,
-		Datatype.ZSET, Datatype.HASH
-    };
-	
-	public FullSyncTask(Connection connection, BacklogEventListener listener, String masterId, long masterbacklogOffset) {
-		super(connection, listener, masterId, masterbacklogOffset);
-	}
-	
-	@Override
-	public void run() {
-		
-		ConnectableObservable<Entry> rdbEvents = connection.getRdbDump();
-		rdbEvents.subscribe(new Subscriber<Entry>() {
-
-            @Override
-            public void onCompleted() {
-                logger.info("rdb dump sync completed");
-            }
-
-            @Override
-            public void onError(Throwable e) {
-                eventListener.onException(e);
-            }
-
-			@Override
-			public void onNext(Entry t) {
-				EventHeader header = new EventHeader(masterId, t.streamOffset);
-				RDBDataEvent event = new RDBDataEvent(t.key, t.value, int2DataTypeMapping[t.type], t.database, header);
-				
-				eventListener.onEvent(event);
-			}
-		});
-		
-		rdbEvents.connect();
-		
-		// rdb stream ended, resume normal replication
-		super.run();
-	}
-}
+//package com.flipkart.redis.replicator;
+//
+//import java.util.List;
+//
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
+//
+//import rx.Subscriber;
+//import rx.observables.ConnectableObservable;
+//
+//import com.flipkart.redis.net.Connection;
+//import com.flipkart.redis.net.Reply;
+//import com.flipkart.redis.net.rdb.RDBParser.Entry;
+//
+//class FullSyncTask extends SyncTask {
+//	
+//	private static final Logger logger = LoggerFactory.getLogger(FullSyncTask.class);
+//	
+//	Subscriber<Entry> rdbDumpEntrySubscriber;
+//	
+//	public FullSyncTask(Connection connection, Subscriber<Entry> rdbDumpEntrySubscriber, 
+//			Subscriber<Reply<List<String>>> cmdEventSubscriber) {
+//		super(connection, cmdEventSubscriber);
+//		this.rdbDumpEntrySubscriber = rdbDumpEntrySubscriber;
+//	}
+//	
+//	public FullSyncTask(Connection connection, Subscriber<Entry> rdbDumpEntrySubscriber) {
+//		this(connection, rdbDumpEntrySubscriber, null);
+//	}
+//	
+//	@Override
+//	public void run() {
+//		
+//		if(connection != null && !connection.isConnected()) {
+//			logger.debug("not connected to redis");
+//			throw new RuntimeException("not connected to redis");
+//		}
+//		if(rdbDumpEntrySubscriber == null) {
+//			logger.debug("null subscriber provided.");
+//			throw new RuntimeException("null subscriber provided.");
+//		}
+//		
+//		ConnectableObservable<Entry> rdbEvents = connection.getRdbDump();
+//		rdbEvents.subscribe(rdbDumpEntrySubscriber);
+//		rdbEvents.connect();
+//		
+//		// rdb stream ended, resume normal replication, if subscriber is provided.
+//		if(cmdEventSubscriber != null) {
+//			super.run();
+//		}
+//	}
+//}

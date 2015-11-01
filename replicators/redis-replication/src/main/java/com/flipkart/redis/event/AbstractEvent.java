@@ -1,7 +1,7 @@
 package com.flipkart.redis.event;
 
 /**
- * Abstract event containing master and backlog offset info. 
+ * Abstract event containing master and backlog offset info.
  * @author gaurav.ashok
  */
 public abstract class AbstractEvent {

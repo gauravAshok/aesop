@@ -1,13 +1,19 @@
 package com.flipkart.redis.event;
 
-public class RDBDataEvent extends AbstractEvent {
+import com.flipkart.redis.net.Datatype;
+
+/**
+ * Event to represent a key and associated data as present in redis
+ * @author gaurav.ashok
+ */
+public class DataEvent extends AbstractEvent {
 
 	String key;	
 	Object value;
 	Datatype type;
 	int database;
 
-	public RDBDataEvent(String key, Object value, Datatype type, int database,
+	public DataEvent(String key, Object value, Datatype type, int database,
 			EventHeader header) {
 		super(header);
 		this.key = key;
@@ -28,5 +34,4 @@ public class RDBDataEvent extends AbstractEvent {
 	public int getDatabase() {
 		return database;
 	}
-	
 }

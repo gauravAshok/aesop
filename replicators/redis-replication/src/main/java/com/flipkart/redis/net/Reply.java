@@ -1,13 +1,18 @@
 package com.flipkart.redis.net;
 
+/**
+ * Class to encapsulate object of type T and bytes read from the inputStream to create it.
+ * @author gaurav.ashok
+ * @param <T>
+ */
 public class Reply<T> {
 	public T object;
-	public int bytesRead;
+	public long bytesRead;
 	
 	public Reply() {
 	}
 	
-	public Reply(T object, int bytesRead) {
+	public Reply(T object, long bytesRead) {
 		this.object = object;
 		this.bytesRead = bytesRead;
 	}

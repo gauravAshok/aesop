@@ -1,4 +1,4 @@
-package com.flipkart.redis.event;
+package com.flipkart.redis.net;
 
 public enum Datatype {
 	STRING, 

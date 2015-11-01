@@ -222,7 +222,7 @@ public class Connection implements Closeable {
 				&& !socket.isOutputShutdown();
 	}
 
-	public ConnectableObservable<RDBParser.Entry> getRdbDump() {
+	public Observable<RDBParser.Entry> getRdbDump() {
 
 		final RDBParser rdbParser = new RDBParser();
 		rdbParser.init(inputStream);
@@ -248,10 +248,10 @@ public class Connection implements Closeable {
 					}
 				});
 
-		return dataEvents.publish();
+		return dataEvents;
 	}
 
-	public ConnectableObservable<Reply<List<String>>> getCommands() {
+	public Observable<Reply<List<String>>> getCommands() {
 		//TODO think about timeouts and exception handling.
 		Observable<Reply<List<String>>> cmdEvents = Observable.create(subscriber -> {
 			try {
@@ -266,7 +266,7 @@ public class Connection implements Closeable {
 				subscriber.onError(e);
 			}
 		});
-		return cmdEvents.publish();
+		return cmdEvents;
 	}
 
 	protected Reply<String> getStatusCodeReply() {

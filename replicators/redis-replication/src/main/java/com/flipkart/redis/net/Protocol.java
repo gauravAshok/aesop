@@ -2,7 +2,11 @@ package com.flipkart.redis.net;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.exceptions.JedisAskDataException;
@@ -285,14 +289,376 @@ public final class Protocol {
 	}
 
 	public static enum Command {
-		PING, SET, GET, QUIT, EXISTS, DEL, TYPE, FLUSHDB, KEYS, RANDOMKEY, RENAME, RENAMENX, RENAMEX, DBSIZE, EXPIRE, EXPIREAT, TTL, SELECT, MOVE, FLUSHALL, GETSET, MGET, SETNX, SETEX, MSET, MSETNX, DECRBY, DECR, INCRBY, INCR, APPEND, SUBSTR, HSET, HGET, HSETNX, HMSET, HMGET, HINCRBY, HEXISTS, HDEL, HLEN, HKEYS, HVALS, HGETALL, RPUSH, LPUSH, LLEN, LRANGE, LTRIM, LINDEX, LSET, LREM, LPOP, RPOP, RPOPLPUSH, SADD, SMEMBERS, SREM, SPOP, SMOVE, SCARD, SISMEMBER, SINTER, SINTERSTORE, SUNION, SUNIONSTORE, SDIFF, SDIFFSTORE, SRANDMEMBER, ZADD, ZRANGE, ZREM, ZINCRBY, ZRANK, ZREVRANK, ZREVRANGE, ZCARD, ZSCORE, MULTI, DISCARD, EXEC, WATCH, UNWATCH, SORT, BLPOP, BRPOP, AUTH, SUBSCRIBE, PUBLISH, UNSUBSCRIBE, PSUBSCRIBE, PUNSUBSCRIBE, PUBSUB, ZCOUNT, ZRANGEBYSCORE, ZREVRANGEBYSCORE, ZREMRANGEBYRANK, ZREMRANGEBYSCORE, ZUNIONSTORE, ZINTERSTORE, ZLEXCOUNT, ZRANGEBYLEX, ZREVRANGEBYLEX, ZREMRANGEBYLEX, SAVE, BGSAVE, BGREWRITEAOF, LASTSAVE, SHUTDOWN, INFO, MONITOR, SLAVEOF, CONFIG, STRLEN, SYNC, LPUSHX, PERSIST, RPUSHX, ECHO, LINSERT, DEBUG, BRPOPLPUSH, SETBIT, GETBIT, BITPOS, SETRANGE, GETRANGE, EVAL, EVALSHA, SCRIPT, SLOWLOG, OBJECT, BITCOUNT, BITOP, SENTINEL, DUMP, RESTORE, PEXPIRE, PEXPIREAT, PTTL, INCRBYFLOAT, PSETEX, CLIENT, TIME, MIGRATE, HINCRBYFLOAT, SCAN, HSCAN, SSCAN, ZSCAN, WAIT, CLUSTER, ASKING, PFADD, PFCOUNT, PFMERGE, PSYNC, REPLCONF;
+		PING, 
+		SET(Datatype.STRING) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		GET, QUIT, EXISTS, DEL, TYPE, FLUSHDB, KEYS, RANDOMKEY, RENAME, RENAMENX, RENAMEX, DBSIZE, EXPIRE, EXPIREAT, TTL, SELECT, MOVE, FLUSHALL, 
+		GETSET(Datatype.STRING) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		MGET(Datatype.STRING), 
+		SETNX(Datatype.STRING) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		SETEX(Datatype.STRING) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		MSET(Datatype.STRING) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				List<String> updatedKeys = new ArrayList<String>();
+				for(int i = 1; i < c.size(); i += 2) {
+					updatedKeys.add(c.get(i));
+				}
+				return updatedKeys;
+			}
+		}, 
+		MSETNX(Datatype.STRING) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				List<String> updatedKeys = new ArrayList<String>();
+				for(int i = 1; i < c.size(); i += 2) {
+					updatedKeys.add(c.get(i));
+				}
+				return updatedKeys;
+			}
+		}, 
+		DECRBY(Datatype.STRING) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		DECR(Datatype.STRING) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		INCRBY(Datatype.STRING) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		INCR(Datatype.STRING) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		APPEND(Datatype.STRING) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		SUBSTR(Datatype.STRING), 
+		HSET(Datatype.HASH) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, HGET(Datatype.HASH),
+		HSETNX(Datatype.HASH) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, HMSET(Datatype.HASH) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		HMGET(Datatype.HASH), 
+		HINCRBY(Datatype.HASH) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		HEXISTS, 
+		HDEL(Datatype.HASH) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		HLEN(Datatype.HASH), HKEYS(Datatype.HASH), HVALS(Datatype.HASH), HGETALL(Datatype.HASH), 
+		RPUSH(Datatype.LIST) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		LPUSH(Datatype.LIST) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		LLEN(Datatype.LIST), LRANGE(Datatype.LIST), 
+		LTRIM(Datatype.LIST) { //
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		LINDEX(Datatype.LIST), 
+		LSET(Datatype.LIST) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		LREM(Datatype.LIST) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		LPOP(Datatype.LIST) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		RPOP(Datatype.LIST) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		RPOPLPUSH(Datatype.LIST) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1, 2);
+			}
+		}, 
+		SADD(Datatype.SET) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		SMEMBERS(Datatype.SET), 
+		SREM(Datatype.SET) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		SPOP(Datatype.SET) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		SMOVE(Datatype.SET) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1, 2);
+			}
+		}, 
+		SCARD(Datatype.SET), SISMEMBER(Datatype.SET), SINTER(Datatype.SET), 
+		SINTERSTORE(Datatype.SET) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		SUNION(Datatype.SET), 
+		SUNIONSTORE(Datatype.SET) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		SDIFF(Datatype.SET), 
+		SDIFFSTORE(Datatype.SET) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		SRANDMEMBER(Datatype.SET), 
+		ZADD(Datatype.ZSET) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		ZRANGE(Datatype.ZSET), 
+		ZREM(Datatype.ZSET) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		ZINCRBY(Datatype.ZSET) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		ZRANK(Datatype.ZSET), ZREVRANK(Datatype.ZSET), ZREVRANGE(Datatype.ZSET), ZCARD(Datatype.ZSET), ZSCORE(Datatype.ZSET), MULTI, DISCARD, EXEC, WATCH, UNWATCH, SORT, 
+		BLPOP(Datatype.LIST) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		BRPOP(Datatype.LIST) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		AUTH, SUBSCRIBE, PUBLISH, UNSUBSCRIBE, PSUBSCRIBE, PUNSUBSCRIBE, PUBSUB, ZCOUNT(Datatype.ZSET), ZRANGEBYSCORE(Datatype.ZSET), ZREVRANGEBYSCORE(Datatype.ZSET), 
+		ZREMRANGEBYRANK(Datatype.ZSET) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		ZREMRANGEBYSCORE(Datatype.ZSET) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		ZUNIONSTORE(Datatype.ZSET) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		ZINTERSTORE(Datatype.ZSET) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		ZLEXCOUNT(Datatype.ZSET), ZRANGEBYLEX(Datatype.ZSET), ZREVRANGEBYLEX(Datatype.ZSET), 
+		ZREMRANGEBYLEX(Datatype.ZSET){
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		SAVE, BGSAVE, BGREWRITEAOF, LASTSAVE, SHUTDOWN, INFO, MONITOR, SLAVEOF, CONFIG, STRLEN(Datatype.STRING), SYNC, 
+		LPUSHX(Datatype.LIST) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		PERSIST, 
+		RPUSHX(Datatype.LIST) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		ECHO, 
+		LINSERT(Datatype.LIST) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		DEBUG, 
+		BRPOPLPUSH(Datatype.LIST) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		SETBIT(Datatype.STRING) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		GETBIT(Datatype.STRING), BITPOS(Datatype.STRING), 
+		SETRANGE(Datatype.STRING) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 1);
+			}
+		}, 
+		GETRANGE(Datatype.STRING), EVAL, EVALSHA, SCRIPT, SLOWLOG, OBJECT, BITCOUNT(Datatype.STRING), 
+		BITOP(Datatype.STRING) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 2);
+			}
+		}, 
+		SENTINEL, DUMP, RESTORE, PEXPIRE, PEXPIREAT, PTTL, 
+		INCRBYFLOAT(Datatype.STRING) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 2);
+			}
+		}, 
+		PSETEX(Datatype.STRING) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 2);
+			}
+		}, 
+		CLIENT, TIME, MIGRATE, 
+		HINCRBYFLOAT(Datatype.HASH) {
+			@Override
+			public List<String> keysUpdated(List<String> c) {
+				return argAtIndex(c, 2);
+			}
+		}, 
+		SCAN, HSCAN, SSCAN, ZSCAN, WAIT, CLUSTER, ASKING, PFADD, PFCOUNT, PFMERGE, PSYNC, REPLCONF;
 
 		public final byte[] raw;
-
+		
+		// datatype of the value on which this command acts on
+		public final Datatype datatype; 
+		
 		Command() {
-			raw = SafeEncoder.encode(this.name());
+			this(null);
 		}
 
+		Command(Datatype datatype) {
+			this.raw = SafeEncoder.encode(this.name());
+			this.datatype = datatype;
+		}
+		
+		public List<String> keysUpdated(List<String> c) {
+			return Collections.emptyList();
+		}
+		
+		private static List<String> argAtIndex(List<String> c, int... index) {
+			if (index.length == 1) {
+				return Collections.singletonList(c.get(index[0]));
+			}
+		
+			List<String> updatedKeys = new ArrayList<String>();
+			for(int i = 0; i < index.length; ++i) {
+				updatedKeys.add(c.get(index[i]));
+			}
+			return updatedKeys;
+		}
 	}
 
 	public static enum Keyword {
