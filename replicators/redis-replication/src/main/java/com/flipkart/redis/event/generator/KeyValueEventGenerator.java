@@ -21,9 +21,12 @@ public class KeyValueEventGenerator extends AbstractEventGenerator<Reply<KeyType
 	private static final Logger logger = LoggerFactory.getLogger(KeyValueEventGenerator.class);
 	private Jedis redisConn = null;
 	
-	public KeyValueEventGenerator(BacklogEventListener listener, ReplicatorState state, String host, int port, int timeout) {
+	public KeyValueEventGenerator(BacklogEventListener listener, ReplicatorState state, String host, int port, String password, int timeout) {
 		super(listener, state);
 		redisConn = new Jedis(host, port, timeout);
+		if(password != null) {
+			redisConn.auth(password);
+		}
 		redisConn.connect();
 		if(!redisConn.isConnected()) {
 			throw new RuntimeException("could not establish connection to redis @ " + host);

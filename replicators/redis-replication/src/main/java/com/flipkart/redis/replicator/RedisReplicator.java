@@ -46,7 +46,7 @@ public class RedisReplicator {
 	 */
 	private long initBacklogOffset;
 	private Connection connection;
-	private int streamOpTimeout;
+	private int soTimeout;
 	
 	private BacklogEventListener eventListener;
 	
@@ -74,7 +74,7 @@ public class RedisReplicator {
 		this.masterRunId = "?";
 		this.initBacklogOffset = -1;
 		
-		this.streamOpTimeout = 10000;				// blocking stream operation timeout
+		this.soTimeout = 10000;				// blocking stream operation timeout
 		
 		scheduledExecService = Executors.newSingleThreadScheduledExecutor();
 		singleThreadExecService = Executors.newSingleThreadExecutor();
@@ -90,7 +90,7 @@ public class RedisReplicator {
 	{
 		// connect to master
 		connection = new Connection(host, port);
-		connection.setSoTimeout(streamOpTimeout);
+		connection.setSoTimeout(soTimeout);
 		connection.connect();
 		
 		if(!connection.isConnected()) {
@@ -151,7 +151,7 @@ public class RedisReplicator {
 			final KeyUpdateObservableMapper keyUpdateObservableMapper = new KeyUpdateObservableMapper();
 			ConnectableObservable<Reply<KeyTypePair>> keyUpdates = cmdEvents.concatMap(e -> keyUpdateObservableMapper.map(e)).publish();
 			
-			keyUpdates.subscribe(new KeyValueEventGenerator(eventListener, currentState, host, port, streamOpTimeout));
+			keyUpdates.subscribe(new KeyValueEventGenerator(eventListener, currentState, host, port, password, soTimeout));
 			
 			submittedReplicationTasks.add(singleThreadExecService.submit(connectInRunnable(keyUpdates)));
 		}
@@ -232,11 +232,11 @@ public class RedisReplicator {
 	}
 
 	public long getStreamOpTimeout() {
-		return streamOpTimeout;
+		return soTimeout;
 	}
 
 	public void setStreamOpTimeout(int milliseconds) {
-		this.streamOpTimeout = milliseconds;
+		this.soTimeout = milliseconds;
 	}
 	
 	public BacklogEventListener getEventListener() {
