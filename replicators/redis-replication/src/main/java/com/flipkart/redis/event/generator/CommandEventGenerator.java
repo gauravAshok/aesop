@@ -6,15 +6,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.flipkart.redis.event.CommandEvent;
-import com.flipkart.redis.event.listener.BacklogEventListener;
+import com.flipkart.redis.event.listener.CommandEventListener;
 import com.flipkart.redis.net.Reply;
 import com.flipkart.redis.replicator.state.ReplicatorState;
 
-public class CommandEventGenerator extends AbstractEventGenerator<Reply<List<String>>> {
+public class CommandEventGenerator extends AbstractEventGenerator<Reply<List<String>>, CommandEvent> {
 
 	private static final Logger logger = LoggerFactory.getLogger(CommandEventGenerator.class);
 	
-	public CommandEventGenerator(BacklogEventListener listener, ReplicatorState state) {
+	public CommandEventGenerator(CommandEventListener listener, ReplicatorState state) {
 		super(listener, state);
 	}
 

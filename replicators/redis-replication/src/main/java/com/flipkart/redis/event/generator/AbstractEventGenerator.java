@@ -3,16 +3,19 @@ package com.flipkart.redis.event.generator;
 import rx.Subscriber;
 
 import com.flipkart.redis.event.EventHeader;
-import com.flipkart.redis.event.listener.BacklogEventListener;
+import com.flipkart.redis.event.listener.AbstractEventListener;
 import com.flipkart.redis.replicator.state.ReplicatorState;
 
-public abstract class AbstractEventGenerator<T> extends Subscriber<T>{
+/*
+ * Event Generator that subscribes to a stream of Type T and generates events of type U
+ */
+public abstract class AbstractEventGenerator<T, U> extends Subscriber<T>{
 
-	BacklogEventListener eventListener;
+	AbstractEventListener<U> eventListener;
 	
 	ReplicatorState state;
 	
-	public AbstractEventGenerator(BacklogEventListener listener, ReplicatorState state) {
+	public AbstractEventGenerator(AbstractEventListener<U> listener, ReplicatorState state) {
 		this.eventListener = listener;
 		this.state = state;
 	}

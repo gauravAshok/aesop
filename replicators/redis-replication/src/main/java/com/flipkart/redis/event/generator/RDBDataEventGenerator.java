@@ -3,14 +3,14 @@ package com.flipkart.redis.event.generator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.flipkart.redis.event.DataEvent;
+import com.flipkart.redis.event.KeyValueEvent;
 import com.flipkart.redis.event.EventHeader;
-import com.flipkart.redis.event.listener.BacklogEventListener;
+import com.flipkart.redis.event.listener.KeyValueEventListener;
 import com.flipkart.redis.net.Datatype;
 import com.flipkart.redis.net.rdb.RDBParser.Entry;
 import com.flipkart.redis.replicator.state.ReplicatorState;
 
-public class RDBDataEventGenerator extends AbstractEventGenerator<Entry>{
+public class RDBDataEventGenerator extends AbstractEventGenerator<Entry, KeyValueEvent>{
 
 	private static final Logger logger = LoggerFactory.getLogger(RDBDataEventGenerator.class);
 
@@ -20,7 +20,7 @@ public class RDBDataEventGenerator extends AbstractEventGenerator<Entry>{
 		Datatype.ZSET, Datatype.HASH
     };
 	
-	public RDBDataEventGenerator(BacklogEventListener listener, ReplicatorState state) {
+	public RDBDataEventGenerator(KeyValueEventListener listener, ReplicatorState state) {
 		super(listener, state);
 	}
 
@@ -37,7 +37,7 @@ public class RDBDataEventGenerator extends AbstractEventGenerator<Entry>{
 	@Override
 	public void onNext(Entry t) {
 		
-		DataEvent event = new DataEvent(t.key, t.value, int2DataTypeMapping[t.type], t.database, this.generateHeader(t));
+		KeyValueEvent event = new KeyValueEvent(t.key, t.value, int2DataTypeMapping[t.type], t.database, this.generateHeader(t));
 		
 		eventListener.onEvent(event);
 	}

@@ -9,11 +9,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import com.flipkart.redis.event.generator.AbstractEventGenerator;
 import com.flipkart.redis.event.generator.CommandEventGenerator;
 import com.flipkart.redis.event.generator.KeyValueEventGenerator;
 import com.flipkart.redis.event.generator.RDBDataEventGenerator;
-import com.flipkart.redis.event.listener.BacklogEventListener;
+import com.flipkart.redis.event.listener.CommandEventListener;
+import com.flipkart.redis.event.listener.KeyValueEventListener;
 import com.flipkart.redis.net.Connection;
 import com.flipkart.redis.net.KeyUpdateObservableMapper;
 import com.flipkart.redis.net.KeyUpdateObservableMapper.KeyTypePair;
@@ -25,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import rx.Observable;
-import rx.functions.Action1;
 import rx.observables.ConnectableObservable;
 
 public class RedisReplicator {
@@ -36,9 +35,6 @@ public class RedisReplicator {
 	private String host;
 	private String password;
 	
-	/**
-	 * For partial sync, masterRunId can be looked up by running "info server" in redis-cli 
-	 */
 	private String masterRunId;
 	
 	/**
@@ -48,7 +44,9 @@ public class RedisReplicator {
 	private Connection connection;
 	private int soTimeout;
 	
-	private BacklogEventListener eventListener;
+	private CommandEventListener cmdEventListener = null;
+	private KeyValueEventListener kvEventListener = null;
+	private KeyValueEventListener rdbkvEventListener = null;
 	
 	/**
 	 * executorService for replication task.
@@ -58,9 +56,13 @@ public class RedisReplicator {
 	
 	private List<Future<?>> submittedReplicationTasks = null;
 	
-	private ReplicatorState currentState;
+	/**
+	 * Replicator state to be shared between eventGenerator thread and 
+	 * the thread that tells master current replication offset.
+	 */
+	private ReplicatorState currentState = null;
 	
-	private boolean eventsForFullDataOnUpdate = false;
+	private boolean fetchFullKeyValueOnUpdate = false;
 	
 	public RedisReplicator() {
 		this("127.0.0.1", 6379);
@@ -83,7 +85,7 @@ public class RedisReplicator {
 	}
 	
 	/**
-	 * connects to the redis instance and sets up a replication.
+	 * connects to the redis instance and sets up a replication task.
 	 * @throws Exception 
 	 */
 	public void start() throws Exception
@@ -101,6 +103,11 @@ public class RedisReplicator {
 		if(password != null) {
 			connection.authenticate(password);
 		}
+		
+		String masterInfo = connection.getInfo("server");
+		int runIdBegin = masterInfo.indexOf("run_id:");
+		int runIdEnd = masterInfo.indexOf("\r\n", runIdBegin);
+		masterRunId = masterInfo.substring(runIdBegin + 7, runIdEnd);
 		
 		// request psync
 		String syncStatus = connection.requestForPSync(masterRunId, initBacklogOffset + 1);
@@ -138,7 +145,7 @@ public class RedisReplicator {
 		final Observable<Entry> rdbObservable = connection.getRdbDump();
 		ConnectableObservable<Entry> connectableRDBObservable = rdbObservable.publish();
 		
-		connectableRDBObservable.subscribe(new RDBDataEventGenerator(eventListener, currentState));
+		connectableRDBObservable.subscribe(new RDBDataEventGenerator(rdbkvEventListener, currentState));
 		
 		submittedReplicationTasks.add(singleThreadExecService.submit(connectInRunnable(connectableRDBObservable)));
 	}
@@ -146,18 +153,18 @@ public class RedisReplicator {
 	private void startPartialReplicationTask() {
 		final Observable<Reply<List<String>>> cmdEvents = connection.getCommands();
 		
-		if(eventsForFullDataOnUpdate) {
+		if(fetchFullKeyValueOnUpdate) {
 			
 			final KeyUpdateObservableMapper keyUpdateObservableMapper = new KeyUpdateObservableMapper();
 			ConnectableObservable<Reply<KeyTypePair>> keyUpdates = cmdEvents.concatMap(e -> keyUpdateObservableMapper.map(e)).publish();
 			
-			keyUpdates.subscribe(new KeyValueEventGenerator(eventListener, currentState, host, port, password, soTimeout));
+			keyUpdates.subscribe(new KeyValueEventGenerator(kvEventListener, currentState, host, port, password, soTimeout));
 			
 			submittedReplicationTasks.add(singleThreadExecService.submit(connectInRunnable(keyUpdates)));
 		}
 		else {
 			ConnectableObservable<Reply<List<String>>> cmdEventsConnectableObs = cmdEvents.publish();
-			cmdEventsConnectableObs.subscribe(new CommandEventGenerator(eventListener, currentState));
+			cmdEventsConnectableObs.subscribe(new CommandEventGenerator(cmdEventListener, currentState));
 			
 			submittedReplicationTasks.add(singleThreadExecService.submit(connectInRunnable(cmdEventsConnectableObs)));
 		}
@@ -211,10 +218,6 @@ public class RedisReplicator {
 		return masterRunId;
 	}
 
-	public void setMasterId(String masterId) {
-		this.masterRunId = masterId;
-	}
-
 	public long getInitBacklogOffset() {
 		return initBacklogOffset;
 	}
@@ -239,15 +242,35 @@ public class RedisReplicator {
 		this.soTimeout = milliseconds;
 	}
 	
-	public BacklogEventListener getEventListener() {
-		return eventListener;
+	public CommandEventListener getCommandEventListener() {
+		return cmdEventListener;
 	}
 
-	public void setEventListener(BacklogEventListener eventListener) {
-		this.eventListener = eventListener;
+	public void setCommandEventListener(CommandEventListener cmdEventListener) {
+		this.cmdEventListener = cmdEventListener;
 	}
-	
-	public void setEventsForFullDataOnUpdate(boolean status) {
-		eventsForFullDataOnUpdate = status;
+
+	public KeyValueEventListener getKeyValueEventListener() {
+		return kvEventListener;
+	}
+
+	public void setKeyValueEventListener(KeyValueEventListener kvEventListener) {
+		this.kvEventListener = kvEventListener;
+	}
+
+	public KeyValueEventListener getRdbKeyValueEventListener() {
+		return rdbkvEventListener;
+	}
+
+	public void setRdbKeyValueEventListener(KeyValueEventListener rdbkvEventListener) {
+		this.rdbkvEventListener = rdbkvEventListener;
+	}
+
+	public boolean isFetchFullKeyValueOnUpdate() {
+		return fetchFullKeyValueOnUpdate;
+	}
+
+	public void setFetchFullKeyValueOnUpdate(boolean fetchFullKeyValueOnUpdate) {
+		this.fetchFullKeyValueOnUpdate = fetchFullKeyValueOnUpdate;
 	}
 }

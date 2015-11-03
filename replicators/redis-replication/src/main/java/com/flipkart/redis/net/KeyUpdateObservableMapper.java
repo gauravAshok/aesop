@@ -75,6 +75,9 @@ public class KeyUpdateObservableMapper {
 	
 	private Observable<Reply<KeyTypePair>> endTxn() {
 		
+		/* end transaction */
+		txnBegin = false;
+		
 		List<Reply<KeyTypePair>> updatedKeys = new ArrayList<Reply<KeyTypePair>>();
 		for(String key : keysModifiedInCurrentTxn.keySet()) {
 			updatedKeys.add(new Reply<KeyTypePair>(

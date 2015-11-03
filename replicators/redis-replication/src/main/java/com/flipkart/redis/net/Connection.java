@@ -268,6 +268,17 @@ public class Connection implements Closeable {
 		});
 		return cmdEvents;
 	}
+	
+	public String getInfo(String infoFor) {
+		if(infoFor == null || infoFor.isEmpty()) {
+			sendCommand(Command.INFO);
+		}
+		else {
+			sendCommand(Command.INFO, infoFor);
+		}
+		
+		return getStatusCodeReply().object;
+	}
 
 	protected Reply<String> getStatusCodeReply() {
 		flush();

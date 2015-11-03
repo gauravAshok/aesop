@@ -1,3 +1,4 @@
+
 package com.flipkart.redis.event.generator;
 
 import java.util.List;
@@ -7,8 +8,8 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.flipkart.redis.event.DataEvent;
-import com.flipkart.redis.event.listener.BacklogEventListener;
+import com.flipkart.redis.event.KeyValueEvent;
+import com.flipkart.redis.event.listener.KeyValueEventListener;
 import com.flipkart.redis.net.Datatype;
 import com.flipkart.redis.net.KeyUpdateObservableMapper.KeyTypePair;
 import com.flipkart.redis.net.Reply;
@@ -16,18 +17,18 @@ import com.flipkart.redis.replicator.state.ReplicatorState;
 
 import redis.clients.jedis.Jedis;
 
-public class KeyValueEventGenerator extends AbstractEventGenerator<Reply<KeyTypePair>>{
+public class KeyValueEventGenerator extends AbstractEventGenerator<Reply<KeyTypePair>, KeyValueEvent>{
 
 	private static final Logger logger = LoggerFactory.getLogger(KeyValueEventGenerator.class);
 	private Jedis redisConn = null;
 	
-	public KeyValueEventGenerator(BacklogEventListener listener, ReplicatorState state, String host, int port, String password, int timeout) {
+	public KeyValueEventGenerator(KeyValueEventListener listener, ReplicatorState state, String host, int port, String password, int timeout) {
 		super(listener, state);
 		redisConn = new Jedis(host, port, timeout);
+		redisConn.connect();
 		if(password != null) {
 			redisConn.auth(password);
 		}
-		redisConn.connect();
 		if(!redisConn.isConnected()) {
 			throw new RuntimeException("could not establish connection to redis @ " + host);
 		}
@@ -50,29 +51,30 @@ public class KeyValueEventGenerator extends AbstractEventGenerator<Reply<KeyType
 		
 		state.setReplicationOffset(state.getReplicationOffset() + keyTypePair.bytesRead);
 		
-		DataEvent event = null;
+		KeyValueEvent event = null;
 		String key = keyTypePair.object.key;
 		Datatype type = keyTypePair.object.type;
+		Object value = null;
 		
 		switch(type) {
 		case HASH:
-			event = new DataEvent(key, getHashMap(key), type, -1, generateHeader(keyTypePair));
+			value = getHashMap(key);
 			break;
 		case LIST:
-			event = new DataEvent(key, getList(key), type, -1, generateHeader(keyTypePair));
+			value = getList(key);
 			break;
 		case SET:
-			event = new DataEvent(key, getSet(key), type, -1, generateHeader(keyTypePair));
+			value = getSet(key);
 			break;
 		case STRING:
-			event = new DataEvent(key, getString(key), type, -1, generateHeader(keyTypePair));
+			value = getString(key);
 			break;
 		case ZSET:
-			event = new DataEvent(key, getZSet(key), type, -1, generateHeader(keyTypePair));
+			value = getZSet(key);
 			break;
 		}
 		
-		eventListener.onEvent(event);
+		eventListener.onEvent(new KeyValueEvent(key, value, type, -1, generateHeader(keyTypePair)));
 	}
 	
 	private String getString(String key) {

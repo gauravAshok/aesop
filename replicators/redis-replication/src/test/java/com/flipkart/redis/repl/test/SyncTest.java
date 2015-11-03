@@ -10,14 +10,14 @@ import org.junit.Test;
 import redis.clients.jedis.Jedis;
 
 import com.flipkart.redis.event.CommandEvent;
-import com.flipkart.redis.event.DataEvent;
-import com.flipkart.redis.event.listener.BacklogEventListener;
+import com.flipkart.redis.event.KeyValueEvent;
+import com.flipkart.redis.event.listener.CommandEventListener;
+import com.flipkart.redis.event.listener.KeyValueEventListener;
 import com.flipkart.redis.net.Datatype;
 import com.flipkart.redis.replicator.RedisReplicator;
 
-class TestListener implements BacklogEventListener 
+class TestcmdListener implements CommandEventListener
 {
-	public static int dataEventsCount = 0;
 	public static int commEventsCount = 0;
 	
 	@Override
@@ -31,9 +31,20 @@ class TestListener implements BacklogEventListener
 		
 		commEventsCount ++;
 	}
+	
+	@Override
+	public void onException(Throwable e) {
+		System.out.println("some error occurred");
+		e.printStackTrace();
+	}
+}
+
+class TestkvListener implements KeyValueEventListener
+{
+	public static int dataEventsCount = 0;
 
 	@Override
-	public void onEvent(DataEvent event) {
+	public void onEvent(KeyValueEvent event) {
 		System.out.print(Thread.currentThread().getId() + " > ");
 		System.out.print("dump: " + event.getDatabase() + ": " + event.getType() + ": " + event.getKey() + " : " + event.getValue().toString() + " Offset: " + event.getHeader().getMasterBacklogOffset());
 		if(event.getType() == Datatype.STRING) {
@@ -63,11 +74,12 @@ public class SyncTest {
     {
 		RedisReplicator replicator = new RedisReplicator("127.0.0.1", 6379);
 		//replicator.setPassword("password");
-		replicator.setEventListener(new TestListener());
+		replicator.setCommandEventListener(new TestcmdListener());
+		replicator.setKeyValueEventListener(new TestkvListener());
 		replicator.setStreamOpTimeout(7000);
 		
 		//try partial sync
-		replicator.setMasterId("082b879a177a445304b3074fe3442dbc10f169ba");
+		
 		replicator.setInitBacklogOffset(625);
 		
 		try {
@@ -88,12 +100,15 @@ public class SyncTest {
 		
 		RedisReplicator replicator = new RedisReplicator("127.0.0.1", 6379);
 		//replicator.setPassword("password");
-		replicator.setEventListener(new TestListener());
+		replicator.setCommandEventListener(new TestcmdListener());
+		TestkvListener kvl = new TestkvListener();
+		replicator.setKeyValueEventListener(kvl);
+		replicator.setRdbKeyValueEventListener(kvl);
 		replicator.setStreamOpTimeout(7000);
-		replicator.setEventsForFullDataOnUpdate(true);
+
+		//replicator.setFetchFullKeyValueOnUpdate(true);
 		
 //		try partial sync
-//		replicator.setMasterId("082b879a177a445304b3074fe3442dbc10f169ba");
 //		replicator.setInitBacklogOffset(625);
 		
 		try {
