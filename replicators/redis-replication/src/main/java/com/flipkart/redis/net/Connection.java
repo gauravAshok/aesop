@@ -10,6 +10,7 @@ import java.util.List;
 import com.flipkart.redis.event.CommandEvent;
 import com.flipkart.redis.net.Protocol.Command;
 import com.flipkart.redis.net.rdb.RDBParser;
+import com.flipkart.redis.net.rdb.RDBParser.Entry;
 
 import redis.clients.jedis.BuilderFactory;
 import redis.clients.jedis.exceptions.JedisConnectionException;
@@ -19,6 +20,8 @@ import redis.clients.util.RedisInputStream;
 import redis.clients.util.RedisOutputStream;
 import redis.clients.util.SafeEncoder;
 import rx.Observable;
+import rx.Observable.OnSubscribe;
+import rx.Subscriber;
 import rx.observables.ConnectableObservable;
 
 public class Connection implements Closeable {
@@ -72,7 +75,8 @@ public class Connection implements Closeable {
 				connect();
 			}
 			socket.setSoTimeout(0);
-		} catch (SocketException ex) {
+		}
+		catch (SocketException ex) {
 			broken = true;
 			throw new JedisConnectionException(ex);
 		}
@@ -81,7 +85,8 @@ public class Connection implements Closeable {
 	public void rollbackTimeout() {
 		try {
 			socket.setSoTimeout(soTimeout);
-		} catch (SocketException ex) {
+		}
+		catch (SocketException ex) {
 			broken = true;
 			throw new JedisConnectionException(ex);
 		}
@@ -104,20 +109,20 @@ public class Connection implements Closeable {
 			connect();
 			Protocol.sendCommand(outputStream, cmd, args);
 			return this;
-		} catch (JedisConnectionException ex) {
+		}
+		catch (JedisConnectionException ex) {
 			/*
 			 * When client send request which formed by invalid protocol, Redis
 			 * send back error message before close connection. We try to read
 			 * it to provide reason of failure.
 			 */
 			try {
-				String errorMessage = Protocol
-						.readErrorLineIfPossible(inputStream);
+				String errorMessage = Protocol.readErrorLineIfPossible(inputStream);
 				if (errorMessage != null && errorMessage.length() > 0) {
-					ex = new JedisConnectionException(errorMessage,
-							ex.getCause());
+					ex = new JedisConnectionException(errorMessage, ex.getCause());
 				}
-			} catch (Exception e) {
+			}
+			catch (Exception e) {
 				/*
 				 * Catch any IOException or JedisConnectionException occurred
 				 * from InputStream#read and just ignore. This approach is safe
@@ -162,12 +167,12 @@ public class Connection implements Closeable {
 				// immediately
 				// <-@wjw_add
 
-				socket.connect(new InetSocketAddress(host, port),
-						connectionTimeout);
+				socket.connect(new InetSocketAddress(host, port), connectionTimeout);
 				socket.setSoTimeout(soTimeout);
 				outputStream = new RedisOutputStream(socket.getOutputStream());
 				inputStream = new RedisInputStream(socket.getInputStream());
-			} catch (IOException ex) {
+			}
+			catch (IOException ex) {
 				broken = true;
 				throw new JedisConnectionException(ex);
 			}
@@ -175,8 +180,7 @@ public class Connection implements Closeable {
 	}
 
 	protected String sendLocalPort() {
-		return sendCommand(Command.REPLCONF, "listening-port",
-				"" + getSocket().getLocalPort()).getStatusCodeReply().object;
+		return sendCommand(Command.REPLCONF, "listening-port", "" + getSocket().getLocalPort()).getStatusCodeReply().object;
 	}
 
 	public String authenticate(String password) {
@@ -192,7 +196,7 @@ public class Connection implements Closeable {
 		sendCommand(Command.PSYNC, masterRunId, "" + initBacklogOffset);
 		return getStatusCodeReply().object;
 	}
-	
+
 	public void sendReplAck(long offset) {
 		sendCommand(Command.REPLCONF, "ACK", String.valueOf(offset));
 	}
@@ -207,19 +211,20 @@ public class Connection implements Closeable {
 			try {
 				outputStream.flush();
 				socket.close();
-			} catch (IOException ex) {
+			}
+			catch (IOException ex) {
 				broken = true;
 				throw new JedisConnectionException(ex);
-			} finally {
+			}
+			finally {
 				IOUtils.closeQuietly(socket);
 			}
 		}
 	}
 
 	public boolean isConnected() {
-		return socket != null && socket.isBound() && !socket.isClosed()
-				&& socket.isConnected() && !socket.isInputShutdown()
-				&& !socket.isOutputShutdown();
+		return socket != null && socket.isBound() && !socket.isClosed() && socket.isConnected()
+		        && !socket.isInputShutdown() && !socket.isOutputShutdown();
 	}
 
 	public Observable<RDBParser.Entry> getRdbDump() {
@@ -227,56 +232,66 @@ public class Connection implements Closeable {
 		final RDBParser rdbParser = new RDBParser();
 		rdbParser.init(inputStream);
 
-		Observable<RDBParser.Entry> dataEvents = Observable
-				.create(subscriber -> {
-					try {
-						RDBParser.Entry entry = rdbParser.next();
+		Observable<RDBParser.Entry> dataEvents = Observable.create(new OnSubscribe<RDBParser.Entry>() {
 
-						while (entry != null) {
-							subscriber.onNext(entry);
-							entry = rdbParser.next();
-						}
+			@Override
+			public void call(Subscriber<? super Entry> t) {
+				try {
+					RDBParser.Entry entry = rdbParser.next();
 
-						byte[] checksum = new byte[8];
-						inputStream.read(checksum, 0, 8);
-
-						subscriber.onCompleted();
-					} catch (Exception e) {
-						// error has occurred while parsing the stream. stop
-						// emitting any more events
-						subscriber.onError(e);
+					while (entry != null) {
+						t.onNext(entry);
+						entry = rdbParser.next();
 					}
-				});
+
+					byte[] checksum = new byte[8];
+					inputStream.read(checksum, 0, 8);
+
+					t.onCompleted();
+				}
+				catch (Exception e) {
+					// error has occurred while parsing the stream. stop
+					// emitting any more events
+					t.onError(e);
+				}
+			}
+		});
 
 		return dataEvents;
 	}
 
 	public Observable<Reply<List<String>>> getCommands() {
-		//TODO think about timeouts and exception handling.
-		Observable<Reply<List<String>>> cmdEvents = Observable.create(subscriber -> {
-			try {
-				while (true) {
-					Reply<List<String>> command = getMultiBulkReplySafe();
-					subscriber.onNext(command);
-				}
+		// TODO think about timeouts and exception handling.
 
-			} catch (JedisConnectionException e) {
-				subscriber.onError(e);
-			} catch (JedisDataException e) {
-				subscriber.onError(e);
+		Observable<Reply<List<String>>> cmdEvents = Observable.create(new OnSubscribe<Reply<List<String>>>() {
+			@Override
+			public void call(Subscriber<? super Reply<List<String>>> t) {
+				try {
+					while (true) {
+						Reply<List<String>> command = getMultiBulkReplySafe();
+						t.onNext(command);
+					}
+
+				}
+				catch (JedisConnectionException e) {
+					t.onError(e);
+				}
+				catch (JedisDataException e) {
+					t.onError(e);
+				}
 			}
 		});
 		return cmdEvents;
 	}
-	
+
 	public String getInfo(String infoFor) {
-		if(infoFor == null || infoFor.isEmpty()) {
+		if (infoFor == null || infoFor.isEmpty()) {
 			sendCommand(Command.INFO);
 		}
 		else {
 			sendCommand(Command.INFO, infoFor);
 		}
-		
+
 		return getStatusCodeReply().object;
 	}
 
@@ -285,27 +300,28 @@ public class Connection implements Closeable {
 		final Reply<?> status = readProtocolWithCheckingBroken();
 		if (null == status) {
 			return null;
-		} 
-		return new Reply<String>(SafeEncoder.encode((byte[])status.object), status.bytesRead);
+		}
+		return new Reply<String>(SafeEncoder.encode((byte[]) status.object), status.bytesRead);
 	}
 
 	protected Reply<String> getBulkReply() {
 		final Reply<?> result = getBinaryBulkReply();
 		if (null != result) {
-			return new Reply<String>(SafeEncoder.encode((byte[])result.object), result.bytesRead);
-		} else {
+			return new Reply<String>(SafeEncoder.encode((byte[]) result.object), result.bytesRead);
+		}
+		else {
 			return null;
 		}
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings ("unchecked")
 	protected Reply<byte[]> getBinaryBulkReply() {
 		flush();
 
 		return (Reply<byte[]>) readProtocolWithCheckingBroken();
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings ("unchecked")
 	protected Reply<Long> getIntegerReply() {
 		flush();
 		return (Reply<Long>) readProtocolWithCheckingBroken();
@@ -315,25 +331,25 @@ public class Connection implements Closeable {
 		Reply<List<byte[]>> result = getBinaryMultiBulkReply();
 		return new Reply<List<String>>(BuilderFactory.STRING_LIST.build(result.object), result.bytesRead);
 	}
-	
+
 	protected Reply<List<String>> getMultiBulkReplySafe() {
 		Reply<List<byte[]>> result = getBinaryMultiBulkReplySafe();
 		return new Reply<List<String>>(BuilderFactory.STRING_LIST.build(result.object), result.bytesRead);
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings ("unchecked")
 	protected Reply<List<byte[]>> getBinaryMultiBulkReply() {
 		flush();
 		return (Reply<List<byte[]>>) readProtocolWithCheckingBroken();
 	}
-	
-	@SuppressWarnings("unchecked")
+
+	@SuppressWarnings ("unchecked")
 	protected Reply<List<byte[]>> getBinaryMultiBulkReplySafe() {
 		flush();
 		return (Reply<List<byte[]>>) Protocol.read(inputStream, Protocol.ASTERISK_BYTE);
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings ("unchecked")
 	protected Reply<List<Object>> getRawObjectMultiBulkReply() {
 		return (Reply<List<Object>>) readProtocolWithCheckingBroken();
 	}
@@ -343,13 +359,13 @@ public class Connection implements Closeable {
 		return getRawObjectMultiBulkReply();
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings ("unchecked")
 	protected Reply<List<Long>> getIntegerMultiBulkReply() {
 		flush();
 		return (Reply<List<Long>>) readProtocolWithCheckingBroken();
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings ("unchecked")
 	protected Reply<Object> getOne() {
 		flush();
 		return (Reply<Object>) readProtocolWithCheckingBroken();
@@ -362,7 +378,8 @@ public class Connection implements Closeable {
 	protected void flush() {
 		try {
 			outputStream.flush();
-		} catch (IOException ex) {
+		}
+		catch (IOException ex) {
 			broken = true;
 			throw new JedisConnectionException(ex);
 		}
@@ -371,7 +388,8 @@ public class Connection implements Closeable {
 	protected Reply<?> readProtocolWithCheckingBroken() {
 		try {
 			return Protocol.read(inputStream);
-		} catch (JedisConnectionException exc) {
+		}
+		catch (JedisConnectionException exc) {
 			broken = true;
 			throw exc;
 		}

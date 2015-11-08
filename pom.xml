@@ -79,7 +79,9 @@
         <module>runtimes/runtime-bootstrap</module>
         <module>runtimes/runtime-blocking-bootstrap</module>
         <module>runtimes/runtime-snapshot-serializer</module>
+        <module>runtimes/runtime-redis-relay</module>
         <module>blocking-bootstrap-producers/blocking-bootstrap-mysql-producer</module>
+        <module>producers/redis-producer</module>
         <module>producers/hbase-producer</module>
         <module>producers/mysql-producer</module>
         <module>producers/diff-producer</module>
@@ -106,6 +108,7 @@
         <module>samples/sample-kafka-client-cluster-consumer</module>
         <module>samples/sample-diff-relay</module>
         <module>samples/sample-mapper-processor-nesting-client</module>
+        <module>samples/sample-redis-relay</module>
         <module>replicators/redis-replication</module>
     </modules>
 

@@ -1,0 +1,221 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>com.flipkart.aesop</groupId>
+		<artifactId>aesop</artifactId>
+		<version>1.2.1-SNAPSHOT</version>
+		<relativePath>../../pom.xml</relativePath>
+	</parent>
+
+	<artifactId>runtime-redis-relay</artifactId>
+	<name>Redis Relay Runtime</name>
+	<description>Redis Relay Runtime</description>
+
+	<licenses>
+		<license>
+			<name>The Apache Software License, Version 2.0</name>
+			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<distributionManagement>
+		<repository>
+			<id>clojars</id>
+			<name>Clojars repository</name>
+			<url>https://clojars.org/repo</url>
+		</repository>
+	</distributionManagement>
+
+	<scm>
+		<url>https://github.com/Flipkart/aesop</url>
+		<connection>https://github.com/Flipkart/aesop.git</connection>
+	</scm>
+
+	<developers>
+		<developer>
+			<id>regunathb</id>
+			<name>Regunath B</name>
+			<email>regunathb@gmail.com</email>
+		</developer>
+	</developers>
+
+	<dependencies>
+		<!-- Databus dependencies -->
+		<dependency>
+			<groupId>com.linkedin.databus</groupId>
+			<artifactId>databus2-relay-impl</artifactId>
+			<version>${com.linkedin.databus.version}</version>
+			<exclusions>
+				<!-- Removing older version servlet API jars -->
+				<exclusion>
+					<artifactId>servlet-api</artifactId>
+					<groupId>javax.servlet</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>javax.servlet</artifactId>
+					<groupId>servlet-api</groupId>
+				</exclusion>
+				<!-- Removing slf4j-log4j12 as we use log4j-over-slf4j bridge -->
+				<exclusion>
+					<artifactId>slf4j-log4j12</artifactId>
+					<groupId>org.slf4j</groupId>
+				</exclusion>
+				<!-- Removing Oracle OJDBC dependency -->
+				<exclusion>
+					<groupId>com.oracle</groupId>
+					<artifactId>ojdbc6</artifactId>
+				</exclusion>
+				<!-- Removing log4j as we use log4j-over-slf4j bridge -->
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<!-- Removing older version of Avro -->
+				<exclusion>
+					<groupId>org.apache.avro</groupId>
+					<artifactId>avro</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>com.linkedin.databus</groupId>
+			<artifactId>databus2-event-producer-common</artifactId>
+			<version>${com.linkedin.databus.version}</version>
+			<exclusions>
+				<!-- Removing slf4j-log4j12 as we use log4j-over-slf4j bridge -->
+				<exclusion>
+					<artifactId>slf4j-log4j12</artifactId>
+					<groupId>org.slf4j</groupId>
+				</exclusion>
+				<!-- Removing older version of Avro -->
+				<exclusion>
+					<groupId>org.apache.avro</groupId>
+					<artifactId>avro</artifactId>
+				</exclusion>
+				<exclusion>
+					<artifactId>open-replicator</artifactId>
+					<groupId>com.google</groupId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>com.linkedin.databus</groupId>
+			<artifactId>databus-core-impl</artifactId>
+			<version>${com.linkedin.databus.version}</version>
+			<exclusions>
+				<!-- Removing slf4j-log4j12 as we use log4j-over-slf4j bridge -->
+				<exclusion>
+					<artifactId>slf4j-log4j12</artifactId>
+					<groupId>org.slf4j</groupId>
+				</exclusion>
+				<!-- Removing older version of Avro -->
+				<exclusion>
+					<groupId>org.apache.avro</groupId>
+					<artifactId>avro</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>com.linkedin.databus</groupId>
+			<artifactId>databus-core-schemas</artifactId>
+			<version>${com.linkedin.databus.version}</version>
+			<exclusions>
+				<!-- Removing slf4j-log4j12 as we use log4j-over-slf4j bridge -->
+				<exclusion>
+					<artifactId>slf4j-log4j12</artifactId>
+					<groupId>org.slf4j</groupId>
+				</exclusion>
+				<!-- Removing older version of Avro -->
+				<exclusion>
+					<groupId>org.apache.avro</groupId>
+					<artifactId>avro</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency> <!-- Adding the Databus client API for the checkpointing implementations -->
+			<groupId>com.linkedin.databus</groupId>
+			<artifactId>databus-client-api</artifactId>
+			<version>${com.linkedin.databus.version}</version>
+			<exclusions>
+				<!-- Removing log4j as we use log4j-over-slf4j bridge -->
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<!-- Removing slf4j-log4j12 as we use log4j-over-slf4j bridge -->
+				<exclusion>
+					<artifactId>slf4j-log4j12</artifactId>
+					<groupId>org.slf4j</groupId>
+				</exclusion>
+				<!-- Removing older version of Avro -->
+				<exclusion>
+					<groupId>org.apache.avro</groupId>
+					<artifactId>avro</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<!-- aesop dependencies -->
+		<dependency>
+			<groupId>com.flipkart.aesop</groupId>
+			<artifactId>runtime</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.flipkart.aesop</groupId>
+			<artifactId>runtime-relay</artifactId>
+		</dependency>
+
+		<!-- Testing -->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+			<version>4.11</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<sourceDirectory>src/main/java</sourceDirectory>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>false</filtering>
+				<includes>
+					<include>index.schemas_registry</include>
+					<include>com.flipkart.aesop.events.redis.event.0.avsc</include>
+				</includes>
+			</resource>
+		</resources>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>${maven-jar-plugin.version}</version>
+				<configuration>
+					<archive>
+						<manifest>
+							<addClasspath>true</addClasspath>
+						</manifest>
+					</archive>
+					<includes>
+						<include>packaged/**/*</include>
+						<include>WEB-INF/**/*</include>
+						<include>com/**/*</include>
+						<include>**/*.*</include>
+					</includes>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>${maven-compiler-plugin.version}</version>
+				<configuration>
+					<source>${jdk.version}</source>
+					<target>${jdk.version}</target>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>

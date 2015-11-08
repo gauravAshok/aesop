@@ -46,16 +46,7 @@ class TestkvListener implements KeyValueEventListener
 	@Override
 	public void onEvent(KeyValueEvent event) {
 		System.out.print(Thread.currentThread().getId() + " > ");
-		System.out.print("dump: " + event.getDatabase() + ": " + event.getType() + ": " + event.getKey() + " : " + event.getValue().toString() + " Offset: " + event.getHeader().getMasterBacklogOffset());
-		if(event.getType() == Datatype.STRING) {
-			byte[] val = ((String)event.getValue()).getBytes();
-			
-			System.out.print("  binary: ");
-			for (byte theByte : val)
-			{
-			  System.out.print(String.format("%8s", Integer.toBinaryString(theByte & 0xFF)).replace(' ', '0') + " ");
-			}
-		}
+		System.out.print("data: " + event.getDatabase() + ": " + event.getType() + ": " + event.getKey() + " : " + event.getValue().toString() + " Offset: " + event.getHeader().getMasterBacklogOffset());
 		System.out.println();
 		dataEventsCount++;
 	}
@@ -76,7 +67,7 @@ public class SyncTest {
 		//replicator.setPassword("password");
 		replicator.setCommandEventListener(new TestcmdListener());
 		replicator.setKeyValueEventListener(new TestkvListener());
-		replicator.setStreamOpTimeout(7000);
+		replicator.setSoTimeout(7000);
 		
 		//try partial sync
 		
@@ -93,7 +84,7 @@ public class SyncTest {
 		replicator.joinOnReplicationTask();
     }
 	
-	@Test
+	
     public void testFullSyncWithHugeDataAndRDBProcessing() throws Exception
     {
 		System.out.println(Thread.currentThread().getId());
@@ -104,7 +95,7 @@ public class SyncTest {
 		TestkvListener kvl = new TestkvListener();
 		replicator.setKeyValueEventListener(kvl);
 		replicator.setRdbKeyValueEventListener(kvl);
-		replicator.setStreamOpTimeout(7000);
+		replicator.setSoTimeout(7000);
 
 		//replicator.setFetchFullKeyValueOnUpdate(true);
 		
@@ -120,6 +111,28 @@ public class SyncTest {
 		
 		replicator.joinOnReplicationTask();
     }
+	
+	@Test 
+	public void testReplicating() throws ExecutionException, InterruptedException {
+		RedisReplicator replicator = new RedisReplicator("10.34.33.179", 6379);
+		replicator.setPassword("hdHQwTDqvBAsu72Y");
+		replicator.setCommandEventListener(new TestcmdListener());
+		TestkvListener kvl = new TestkvListener();
+		replicator.setKeyValueEventListener(kvl);
+		replicator.setRdbKeyValueEventListener(kvl);
+		replicator.setSoTimeout(15000);
+
+		replicator.setFetchFullKeyValueOnUpdate(true);
+		
+		try {
+			replicator.start();
+		} catch (Exception e) {
+			System.out.println("unexpected things happened. look into it.");
+			e.printStackTrace();
+		}
+		
+		replicator.joinOnReplicationTask();
+	}
 	
 	private void generateData(Jedis conn, int start, int stop) throws Exception
 	{

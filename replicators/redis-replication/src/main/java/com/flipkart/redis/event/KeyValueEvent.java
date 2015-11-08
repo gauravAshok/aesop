@@ -22,6 +22,7 @@ public class KeyValueEvent extends AbstractEvent {
 		this.database = database;
 	}
 
+	@Override
 	public String getKey() {
 		return key;
 	}

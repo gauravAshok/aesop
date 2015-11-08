@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.flipkart.redis.event.KeyValueEvent;
-import com.flipkart.redis.event.listener.KeyValueEventListener;
+import com.flipkart.redis.event.listener.AbstractEventListener;
 import com.flipkart.redis.net.Datatype;
 import com.flipkart.redis.net.KeyUpdateObservableMapper.KeyTypePair;
 import com.flipkart.redis.net.Reply;
@@ -22,7 +22,7 @@ public class KeyValueEventGenerator extends AbstractEventGenerator<Reply<KeyType
 	private static final Logger logger = LoggerFactory.getLogger(KeyValueEventGenerator.class);
 	private Jedis redisConn = null;
 	
-	public KeyValueEventGenerator(KeyValueEventListener listener, ReplicatorState state, String host, int port, String password, int timeout) {
+	public KeyValueEventGenerator(AbstractEventListener<KeyValueEvent> listener, ReplicatorState state, String host, int port, String password, int timeout) {
 		super(listener, state);
 		redisConn = new Jedis(host, port, timeout);
 		redisConn.connect();

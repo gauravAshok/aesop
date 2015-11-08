@@ -13,6 +13,8 @@ public abstract class AbstractEvent {
 		this.header = header;
 	}
 
+	public abstract String getKey();
+	
 	public EventHeader getHeader() {
 		return header;
 	}

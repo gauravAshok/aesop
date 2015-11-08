@@ -6,15 +6,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.flipkart.redis.event.CommandEvent;
-import com.flipkart.redis.event.listener.CommandEventListener;
+import com.flipkart.redis.event.listener.AbstractEventListener;
 import com.flipkart.redis.net.Reply;
+import com.flipkart.redis.net.Protocol.Command;
 import com.flipkart.redis.replicator.state.ReplicatorState;
 
 public class CommandEventGenerator extends AbstractEventGenerator<Reply<List<String>>, CommandEvent> {
 
 	private static final Logger logger = LoggerFactory.getLogger(CommandEventGenerator.class);
 	
-	public CommandEventGenerator(CommandEventListener listener, ReplicatorState state) {
+	public CommandEventGenerator(AbstractEventListener<CommandEvent> listener, ReplicatorState state) {
 		super(listener, state);
 	}
 
@@ -37,6 +38,8 @@ public class CommandEventGenerator extends AbstractEventGenerator<Reply<List<Str
 			//do nothing
 		}
 		else {
+			final Command command = Command.valueOf(cmd.object.get(0).toUpperCase());
+			
 			List<String> args = cmd.object.subList(2, cmd.object.size());
 			
 			CommandEvent cmdEvent = new CommandEvent(cmd.object.get(0), cmd.object.get(1), args, this.generateHeader(cmd));

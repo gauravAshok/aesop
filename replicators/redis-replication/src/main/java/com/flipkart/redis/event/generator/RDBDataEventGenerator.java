@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import com.flipkart.redis.event.KeyValueEvent;
 import com.flipkart.redis.event.EventHeader;
-import com.flipkart.redis.event.listener.KeyValueEventListener;
+import com.flipkart.redis.event.listener.AbstractEventListener;
 import com.flipkart.redis.net.Datatype;
 import com.flipkart.redis.net.rdb.RDBParser.Entry;
 import com.flipkart.redis.replicator.state.ReplicatorState;
@@ -20,7 +20,7 @@ public class RDBDataEventGenerator extends AbstractEventGenerator<Entry, KeyValu
 		Datatype.ZSET, Datatype.HASH
     };
 	
-	public RDBDataEventGenerator(KeyValueEventListener listener, ReplicatorState state) {
+	public RDBDataEventGenerator(AbstractEventListener<KeyValueEvent> listener, ReplicatorState state) {
 		super(listener, state);
 	}
 
