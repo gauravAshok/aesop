@@ -8,7 +8,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Type;
-import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
@@ -21,7 +20,6 @@ import com.flipkart.aesop.runtime.redis.mapper.AbstractEventMapper;
 import com.flipkart.aesop.runtime.redis.producer.RedisEventProducer;
 import com.flipkart.aesop.runtime.redis.relay.config.RedisLogicalSourceStaticConfig;
 import com.flipkart.redis.event.AbstractEvent;
-import com.flipkart.redis.event.KeyValueEvent;
 import com.flipkart.redis.event.listener.AbstractEventListener;
 import com.linkedin.databus.core.DbusEventBufferAppendable;
 import com.linkedin.databus.core.DbusEventInfo;
@@ -154,26 +152,6 @@ public class RedisEventListener<T extends GenericRecord, U extends AbstractEvent
     public void onException(Throwable e) {
 	    LOGGER.error("Error in replicator: {}", e);
     }
-	
-	/* default implementation for eventMapper */
-	public T mapEventToGenericRecord(KeyValueEvent event, Schema schema) {
-		
-		Schema keyvalueSchema = schema.getField("keyvalue").schema().getTypes().get(0);
-		GenericRecord record = new GenericData.Record(schema);
-		GenericRecord keyValuePair = new GenericData.Record(keyvalueSchema);
-		
-		keyValuePair.put("key", event.getKey());
-		keyValuePair.put("value", event.getValue());
-		keyValuePair.put("database", event.getDatabase());
-		keyValuePair.put("datatype", event.getType().name());
-		
-		record.put("keyvalue", keyValuePair);
-		record.put("command", null);
-		
-		LOGGER.debug("Mapped event to a record : {}", record);
-		
-		return (T)record;
-	}
 	
 	public int createAndAppendEvent(DbChangeEntry changeEntry, boolean enableTracing, short pSourceId, short lSourceId) throws UnsupportedKeyException, EventCreationException { 
 		
