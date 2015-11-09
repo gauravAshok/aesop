@@ -30,7 +30,10 @@
 
     <bean id="redisPersonProducer" class="com.flipkart.aesop.runtime.redis.producer.RedisEventProducer">
     	<property name="physicalSourceConfig" ref="physicalSourceConfig"/>
+    	<property name="kvEventMapper" ref="keyValueEventMapper"/>
     </bean>
+    
+    <bean id="keyValueEventMapper" class="com.flipkart.aesop.runtime.redis.mapper.KeyValueEventMapper"/>
     
     <bean id="physicalSourceConfig" class="com.flipkart.aesop.runtime.redis.relay.config.RedisPhysicalSourceConfig">
         <property name="id" value="1"/>

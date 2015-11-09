@@ -28,6 +28,7 @@ import com.flipkart.aesop.runtime.producer.AbstractEventProducer;
 import com.flipkart.aesop.runtime.redis.listener.RedisEventListener;
 import com.flipkart.aesop.runtime.redis.mapper.CommandEventMapper;
 import com.flipkart.aesop.runtime.redis.mapper.KeyValueEventMapper;
+import com.flipkart.aesop.runtime.redis.relay.config.RedisPhysicalSourceConfig;
 import com.flipkart.aesop.runtime.redis.relay.config.RedisPhysicalSourceStaticConfig;
 import com.flipkart.redis.event.CommandEvent;
 import com.flipkart.redis.event.KeyValueEvent;
@@ -63,9 +64,9 @@ public class RedisEventProducer<T extends GenericRecord> extends AbstractEventPr
 	 */
 	public void afterPropertiesSet() throws Exception {
 		Assert.isTrue(
-		        RedisPhysicalSourceStaticConfig.class.isAssignableFrom(this.physicalSourceStaticConfig.getClass()),
+		        RedisPhysicalSourceConfig.class.isAssignableFrom(this.physicalSourceConfig.getClass()),
 		        "PhysicalSourceConfig must be of type RedisPhysicalSourceConfig");
-		RedisPhysicalSourceStaticConfig config = (RedisPhysicalSourceStaticConfig) this.physicalSourceStaticConfig;
+		RedisPhysicalSourceConfig config = (RedisPhysicalSourceConfig) this.physicalSourceConfig;
 		if (config.isFetchFullKeyValueOnUpdate()) {
 			Assert.notNull(kvEventMapper, "keyValueEvent mapper is null");
 		}
@@ -92,7 +93,7 @@ public class RedisEventProducer<T extends GenericRecord> extends AbstractEventPr
 
 		replicator = new RedisReplicator(uri);
 		replicator.setInitBacklogOffset(sinceSCN);
-		replicator.setSoTimeout(10000000);
+		replicator.setSoTimeout(10000);
 
 		boolean fetchFullDataOnUpdate =
 		        ((RedisPhysicalSourceStaticConfig) physicalSourceStaticConfig).isFetchFullKeyValueOnUpdate();
