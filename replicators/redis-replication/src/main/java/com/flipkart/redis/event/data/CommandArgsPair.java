@@ -1,4 +1,4 @@
-package com.flipkart.redis.event;
+package com.flipkart.redis.event.data;
 
 import java.util.List;
 
@@ -14,25 +14,26 @@ import java.util.List;
  * 				
  * @author gaurav.ashok
  */
-public class CommandEvent extends AbstractEvent {
-	
+
+public class CommandArgsPair extends AbstractData {
 	String command;
 	List<String> args;
 	
 	List<String> keySet;
-	
-	public CommandEvent(String command, String key, List<String> args,
-			EventHeader header) {
-		super(header);
+
+	public CommandArgsPair(String command, List<String> keySet, List<String> args) {
 		this.command = command;
 		this.args = args;
-		keySet = null;
-	}
-	
-	void setKeySet(List<String> keySet) {
 		this.keySet = keySet;
 	}
 	
+	@Override
+    public String getKey() {
+		if(keySet == null || keySet.isEmpty()) {
+	    	return null;
+	    }
+	    return keySet.get(0);
+    }
 	public String getCommand() {
 		return command;
 	}
@@ -41,13 +42,5 @@ public class CommandEvent extends AbstractEvent {
 	}
 	public List<String> getKeySet() {
 		return keySet;
-	}
-	
-	@Override
-	public String getKey() {
-	    if(keySet == null || keySet.isEmpty()) {
-	    	return null;
-	    }
-	    return keySet.get(0);
 	}
 }

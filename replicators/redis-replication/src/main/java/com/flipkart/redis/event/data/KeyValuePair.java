@@ -1,31 +1,25 @@
-package com.flipkart.redis.event;
+package com.flipkart.redis.event.data;
 
 import com.flipkart.redis.net.Datatype;
 
-/**
- * Event to represent a key and associated data as present in redis
- * @author gaurav.ashok
- */
-public class KeyValueEvent extends AbstractEvent {
+public class KeyValuePair extends AbstractData {
 
 	String key;	
 	Object value;
 	Datatype type;
 	int database;
-
-	public KeyValueEvent(String key, Object value, Datatype type, int database,
-			EventHeader header) {
-		super(header);
+	
+	public KeyValuePair(String key, Object value, Datatype type, int database) {
 		this.key = key;
 		this.value = value;
 		this.type = type;
 		this.database = database;
 	}
-
+	
 	@Override
-	public String getKey() {
+    public String getKey() {
 		return key;
-	}
+    }
 	public Object getValue() {
 		return value;
 	}

@@ -5,17 +5,15 @@
 package com.flipkart.redis.net.rdb;
 
 import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.TreeMap;
 
+import com.flipkart.redis.net.Datatype;
 import com.flipkart.redis.net.Protocol;
 
-import redis.clients.jedis.exceptions.JedisConnectionException;
 import redis.clients.jedis.exceptions.JedisDataException;
 import redis.clients.util.RedisInputStream;
 
@@ -87,8 +85,7 @@ public class RDBParser {
 
     public static final int REDIS_RDB_ENC_INT32 = 2; /* 32 bit signed integer */
 
-    public static final int REDIS_RDB_ENC_LZF = 3; /* string compressed with FASTLZ
-                                                    */
+    public static final int REDIS_RDB_ENC_LZF = 3; /* string compressed with FASTLZ */
 
     private static void ERROR(String msg, Object... args) {
         throw new JedisDataException(String.format(msg, args));
@@ -667,6 +664,9 @@ public class RDBParser {
     public void init(RedisInputStream is) {
         
     	byte dollarByte = is.readByte();
+    	while(dollarByte == '\n' || dollarByte == '\r') {
+    		dollarByte = is.readByte();
+    	}
     	
     	if(dollarByte != Protocol.DOLLAR_BYTE) {
   		  	ERROR("expected '$' byte but not found while processing rdb dump");

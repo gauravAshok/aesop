@@ -30,8 +30,9 @@ import com.flipkart.aesop.runtime.redis.mapper.CommandEventMapper;
 import com.flipkart.aesop.runtime.redis.mapper.KeyValueEventMapper;
 import com.flipkart.aesop.runtime.redis.relay.config.RedisPhysicalSourceConfig;
 import com.flipkart.aesop.runtime.redis.relay.config.RedisPhysicalSourceStaticConfig;
-import com.flipkart.redis.event.CommandEvent;
-import com.flipkart.redis.event.KeyValueEvent;
+import com.flipkart.redis.event.Event;
+import com.flipkart.redis.event.data.CommandArgsPair;
+import com.flipkart.redis.event.data.KeyValuePair;
 import com.flipkart.redis.event.listener.AbstractEventListener;
 import com.flipkart.redis.replicator.RedisReplicator;
 
@@ -51,9 +52,9 @@ public class RedisEventProducer<T extends GenericRecord> extends AbstractEventPr
 
 	private volatile AtomicBoolean shutdownRequested = new AtomicBoolean(false);
 
-	private AbstractEventListener<CommandEvent> cmdEventListener = null;
-	private AbstractEventListener<KeyValueEvent> kvEventListener = null;
-	private AbstractEventListener<KeyValueEvent> rdbEventListener = null;
+	private AbstractEventListener<Event<CommandArgsPair>> cmdEventListener = null;
+	private AbstractEventListener<Event<KeyValuePair>> kvEventListener = null;
+	private AbstractEventListener<Event<KeyValuePair>> rdbEventListener = null;
 
 	private CommandEventMapper<T> cmdEventMapper = null;
 	private KeyValueEventMapper<T> kvEventMapper = null;
@@ -100,7 +101,7 @@ public class RedisEventProducer<T extends GenericRecord> extends AbstractEventPr
 
 		if (fetchFullDataOnUpdate) {
 			kvEventListener =
-			        new RedisEventListener<T, KeyValueEvent>(dbusEventsStatisticsCollector, schemaRegistryService,
+			        new RedisEventListener<T, KeyValuePair>(dbusEventsStatisticsCollector, schemaRegistryService,
 			                this.sinceSCN, scnGenerator, this, kvEventMapper);
 
 			replicator.setKeyValueEventListener(kvEventListener);
@@ -108,7 +109,7 @@ public class RedisEventProducer<T extends GenericRecord> extends AbstractEventPr
 		}
 		else {
 			cmdEventListener =
-			        new RedisEventListener<T, CommandEvent>(dbusEventsStatisticsCollector, schemaRegistryService,
+			        new RedisEventListener<T, CommandArgsPair>(dbusEventsStatisticsCollector, schemaRegistryService,
 			                this.sinceSCN, scnGenerator, this, cmdEventMapper);
 
 			replicator.setCommandEventListener(cmdEventListener);
@@ -117,18 +118,19 @@ public class RedisEventProducer<T extends GenericRecord> extends AbstractEventPr
 		/* if init scn is negative or 0, set rdbEventListener too */
 		if (sinceSCN <= 0) {
 			rdbEventListener =
-			        new RedisEventListener<T, KeyValueEvent>(dbusEventsStatisticsCollector, schemaRegistryService,
+			        new RedisEventListener<T, KeyValuePair>(dbusEventsStatisticsCollector, schemaRegistryService,
 			                this.sinceSCN, scnGenerator, this, kvEventMapper);
 
 			replicator.setRdbKeyValueEventListener(rdbEventListener);
 		}
 
 		try {
+			//TODO should the start call block?
 			replicator.start();
-			replicator.joinOnReplicationTask();
+			
 		}
 		catch (Exception e) {
-			LOGGER.error("ERROR in while replicating. Err : {}", e);
+			LOGGER.error("Error while starting replicator : {}", e);
 		}
 	}
 

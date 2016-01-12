@@ -1,7 +1,7 @@
 package com.flipkart.redis.net;
 
 /**
- * Class to encapsulate object of type T and bytes read from the inputStream to create it.
+ * Class to encapsulate object of type T and bytes read.
  * @author gaurav.ashok
  * @param <T>
  */

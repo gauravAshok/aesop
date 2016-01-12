@@ -5,9 +5,10 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import com.flipkart.redis.event.CommandEvent;
 import com.flipkart.redis.net.Protocol.Command;
 import com.flipkart.redis.net.rdb.RDBParser;
 import com.flipkart.redis.net.rdb.RDBParser.Entry;
@@ -22,7 +23,6 @@ import redis.clients.util.SafeEncoder;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
-import rx.observables.ConnectableObservable;
 
 public class Connection implements Closeable {
 
@@ -59,6 +59,14 @@ public class Connection implements Closeable {
 
 	public int getSoTimeout() {
 		return soTimeout;
+	}
+	
+	protected RedisInputStream getInputStream() {
+		return inputStream;
+	}
+	
+	protected RedisOutputStream getOutputStream() {
+		return outputStream;
 	}
 
 	public void setConnectionTimeout(int connectionTimeout) {
@@ -179,26 +187,8 @@ public class Connection implements Closeable {
 		}
 	}
 
-	protected String sendLocalPort() {
-		return sendCommand(Command.REPLCONF, "listening-port", "" + getSocket().getLocalPort()).getStatusCodeReply().object;
-	}
-
 	public String authenticate(String password) {
 		return sendCommand(Command.AUTH, password).getStatusCodeReply().object;
-	}
-
-	public String requestForPSync(String masterRunId, long initBacklogOffset) {
-
-		// notify master server this connections port.
-		sendLocalPort();
-
-		// request psync
-		sendCommand(Command.PSYNC, masterRunId, "" + initBacklogOffset);
-		return getStatusCodeReply().object;
-	}
-
-	public void sendReplAck(long offset) {
-		sendCommand(Command.REPLCONF, "ACK", String.valueOf(offset));
 	}
 
 	@Override
@@ -225,63 +215,6 @@ public class Connection implements Closeable {
 	public boolean isConnected() {
 		return socket != null && socket.isBound() && !socket.isClosed() && socket.isConnected()
 		        && !socket.isInputShutdown() && !socket.isOutputShutdown();
-	}
-
-	public Observable<RDBParser.Entry> getRdbDump() {
-
-		final RDBParser rdbParser = new RDBParser();
-		rdbParser.init(inputStream);
-
-		Observable<RDBParser.Entry> dataEvents = Observable.create(new OnSubscribe<RDBParser.Entry>() {
-
-			@Override
-			public void call(Subscriber<? super Entry> t) {
-				try {
-					RDBParser.Entry entry = rdbParser.next();
-
-					while (entry != null) {
-						t.onNext(entry);
-						entry = rdbParser.next();
-					}
-
-					byte[] checksum = new byte[8];
-					inputStream.read(checksum, 0, 8);
-
-					t.onCompleted();
-				}
-				catch (Exception e) {
-					// error has occurred while parsing the stream. stop
-					// emitting any more events
-					t.onError(e);
-				}
-			}
-		});
-
-		return dataEvents;
-	}
-
-	public Observable<Reply<List<String>>> getCommands() {
-		// TODO think about timeouts and exception handling.
-
-		Observable<Reply<List<String>>> cmdEvents = Observable.create(new OnSubscribe<Reply<List<String>>>() {
-			@Override
-			public void call(Subscriber<? super Reply<List<String>>> t) {
-				try {
-					while (true) {
-						Reply<List<String>> command = getMultiBulkReplySafe();
-						t.onNext(command);
-					}
-
-				}
-				catch (JedisConnectionException e) {
-					t.onError(e);
-				}
-				catch (JedisDataException e) {
-					t.onError(e);
-				}
-			}
-		});
-		return cmdEvents;
 	}
 
 	public String getInfo(String infoFor) {
@@ -393,5 +326,44 @@ public class Connection implements Closeable {
 			broken = true;
 			throw exc;
 		}
+	}
+	
+	public Map<String, String> readHashMap() {
+		HashMap<String, String> map = new HashMap<String, String>();
+		
+		Reply<List<String>> reply = getMultiBulkReply();
+		
+		if(reply == null || reply.object == null || reply.object.isEmpty()) {
+			return null;
+		}
+		
+		for(int i = 0; i < reply.object.size(); i += 2) {
+			map.put(reply.object.get(i), reply.object.get(i+1));
+		}
+		
+		return map;
+	}
+	
+	public List<String> readList() {
+		Reply<List<String>> reply = getMultiBulkReply();
+		
+		if(reply == null || reply.object == null || reply.object.isEmpty()) {
+			return null;
+		}
+		
+		return reply.object;
+	}
+	
+	public List<String> readSet() {
+		return readList();
+	}
+	
+	public String readString() {
+		Reply<String> reply = getBulkReply();
+		if(reply == null) {
+			return null;
+		}
+		
+		return reply.object;
 	}
 }

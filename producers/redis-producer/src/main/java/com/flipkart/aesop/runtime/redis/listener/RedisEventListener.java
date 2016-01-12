@@ -19,7 +19,8 @@ import com.flipkart.aesop.runtime.producer.spi.SCNGenerator;
 import com.flipkart.aesop.runtime.redis.mapper.AbstractEventMapper;
 import com.flipkart.aesop.runtime.redis.producer.RedisEventProducer;
 import com.flipkart.aesop.runtime.redis.relay.config.RedisLogicalSourceStaticConfig;
-import com.flipkart.redis.event.AbstractEvent;
+import com.flipkart.redis.event.Event;
+import com.flipkart.redis.event.data.AbstractData;
 import com.flipkart.redis.event.listener.AbstractEventListener;
 import com.linkedin.databus.core.DbusEventBufferAppendable;
 import com.linkedin.databus.core.DbusEventInfo;
@@ -36,7 +37,7 @@ import com.linkedin.databus2.relay.config.LogicalSourceStaticConfig;
 import com.linkedin.databus2.schemas.SchemaId;
 import com.linkedin.databus2.schemas.SchemaRegistryService;
 
-public class RedisEventListener<T extends GenericRecord, U extends AbstractEvent> implements AbstractEventListener<U> {
+public class RedisEventListener<T extends GenericRecord, U extends AbstractData> implements AbstractEventListener<Event<U>> {
 
 	private static final Logger LOGGER = LogFactory.getLogger(RedisEventListener.class);
 	
@@ -65,7 +66,7 @@ public class RedisEventListener<T extends GenericRecord, U extends AbstractEvent
     }
 
 	@Override
-    public void onEvent(U event) {
+    public void onEvent(Event<U> event) {
 		
 	    /* get the logical source */
 		if(event != null) {

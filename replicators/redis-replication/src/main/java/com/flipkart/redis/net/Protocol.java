@@ -73,6 +73,13 @@ public final class Protocol {
 
 	public static final byte[] BYTES_TRUE = toByteArray(1);
 	public static final byte[] BYTES_FALSE = toByteArray(0);
+	
+	// rdb datatype integer to datatype mapping
+	public static final Datatype[] rdbInt2DataTypeMapping = { 
+		Datatype.STRING, Datatype.LIST, Datatype.SET, Datatype.ZSET, 
+		Datatype.HASH, null, null, null, null, Datatype.HASH, Datatype.LIST, Datatype.SET,
+		Datatype.ZSET, Datatype.HASH
+    };
 
 	private Protocol() {
 		// this prevent the class from instantiation

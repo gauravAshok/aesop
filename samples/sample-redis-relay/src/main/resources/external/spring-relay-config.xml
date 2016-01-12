@@ -16,7 +16,7 @@
                             <property name="singleton" value="true"/>
                             <property name="properties">
                                 <props>
-                                    <prop key="databus.relay.dataSources.sequenceNumbersHandler.file.initVal">-1000</prop>
+                                    <prop key="databus.relay.dataSources.sequenceNumbersHandler.file.initVal">0</prop>
                                 </props>
                             </property>
                         </bean>

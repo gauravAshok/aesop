@@ -1,29 +1,10 @@
 package com.flipkart.redis.replicator;
 
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import com.flipkart.redis.event.CommandEvent;
-import com.flipkart.redis.event.KeyValueEvent;
-import com.flipkart.redis.event.generator.CommandEventGenerator;
-import com.flipkart.redis.event.generator.KeyValueEventGenerator;
-import com.flipkart.redis.event.generator.RDBDataEventGenerator;
-import com.flipkart.redis.event.listener.AbstractEventListener;
-import com.flipkart.redis.event.listener.CommandEventListener;
-import com.flipkart.redis.event.listener.KeyValueEventListener;
-import com.flipkart.redis.net.Connection;
-import com.flipkart.redis.net.KeyUpdateObservableMapper;
-import com.flipkart.redis.net.KeyUpdateObservableMapper.KeyTypePair;
-import com.flipkart.redis.net.Reply;
-import com.flipkart.redis.net.rdb.RDBParser.Entry;
-import com.flipkart.redis.replicator.state.ReplicatorState;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,8 +12,17 @@ import org.slf4j.LoggerFactory;
 import redis.clients.jedis.exceptions.InvalidURIException;
 import redis.clients.util.JedisURIHelper;
 import rx.Observable;
-import rx.functions.Func1;
 import rx.observables.ConnectableObservable;
+import rx.schedulers.Schedulers;
+
+import com.flipkart.redis.event.Event;
+import com.flipkart.redis.event.data.*;
+import com.flipkart.redis.event.listener.AbstractEventListener;
+import com.flipkart.redis.event.relay.EventRelay;
+import com.flipkart.redis.exception.ReplicatorRuntimeException;
+import com.flipkart.redis.net.*;
+import com.flipkart.redis.net.SlaveConnection.ReplicationType;
+import com.flipkart.redis.net.mapper.*;
 
 public class RedisReplicator {
 
@@ -41,35 +31,43 @@ public class RedisReplicator {
 	private int port;
 	private String host;
 	private String password = null;
+	private int soTimeout = 10000; // 10 sec
 
 	private String masterRunId = "?";
+
 	/**
 	 * For partial sync, current master_repl_offset can be looked up by running "info replication" in redis-cli
 	 */
 	private long initBacklogOffset = -1;
 
-	private Connection connection = null;
-	private int soTimeout = 10000; // 10 sec
+	/**
+	 * Slave connection to redis master
+	 */
+	private SlaveConnection slaveConnection = null;
 
-	private AbstractEventListener<CommandEvent> cmdEventListener = null;
-	private AbstractEventListener<KeyValueEvent> kvEventListener = null;
-	private AbstractEventListener<KeyValueEvent> rdbkvEventListener = null;
+	/**
+	 * Read connection, in case we have to read back values
+	 */
+	private Connection readConnection = null;
+
+	/**
+	 * Event Listeners
+	 */
+	private AbstractEventListener<Event<CommandArgsPair>> cmdEventListener = null;
+	private AbstractEventListener<Event<KeyValuePair>> kvEventListener = null;
+	private AbstractEventListener<Event<KeyValuePair>> rdbkvEventListener = null;
 
 	/**
 	 * executorService for replication task.
 	 */
 	private ExecutorService singleThreadExecService = Executors.newSingleThreadExecutor();
-	private ScheduledExecutorService scheduledExecService = Executors.newSingleThreadScheduledExecutor();;
-
-	private List<Future<?>> submittedReplicationTasks = new ArrayList<Future<?>>();
 
 	/**
-	 * Replicator state to be shared between eventGenerator thread and
-	 * the thread that tells master current replication offset.
+	 * flag to enable fetching full value for the keys using another connection.
 	 */
-	private ReplicatorState currentState = null;
-
 	private boolean fetchFullKeyValueOnUpdate = false;
+
+	private AtomicBoolean isRunning = new AtomicBoolean(false);
 
 	public RedisReplicator() {
 		this("127.0.0.1", 6379);
@@ -83,7 +81,7 @@ public class RedisReplicator {
 
 	public RedisReplicator(URI uri) {
 		if (!JedisURIHelper.isValid(uri)) {
-			throw new InvalidURIException(String.format("Cannot open Redis connection due invalid URI. %s",
+			throw new InvalidURIException(String.format("Cannot open Redis connection due to invalid URI. %s",
 			        uri.toString()));
 		}
 
@@ -97,112 +95,114 @@ public class RedisReplicator {
 	 * @throws Exception
 	 */
 	public void start() throws Exception {
-		// connect to master
-		connection = new Connection(host, port);
-		connection.setSoTimeout(soTimeout);
-		connection.connect();
 
-		if (!connection.isConnected()) {
-			throw new RuntimeException("Could not connect");
+		try {
+			// connect to master as a slave
+			slaveConnection =
+			        ConnectionFactory.getInstance().createAsSlave(host, port, password, soTimeout, initBacklogOffset + 1);
+	
+			if (slaveConnection == null || !slaveConnection.isConnected()) {
+				throw new ReplicatorRuntimeException("Could not connect to host @ " + host);
+			}
+	
+			// get masterID
+			masterRunId = slaveConnection.getMasterRunId();
+	
+			if (slaveConnection.getReplicationType() == ReplicationType.FULLRESYNC && rdbkvEventListener == null) {
+				logger.warn("No listener registered for RDB dump");
+			}
+	
+			if (slaveConnection.getReplicationType() == ReplicationType.PARTIAL) {
+				if (fetchFullKeyValueOnUpdate && kvEventListener == null) {
+					throw new ReplicatorRuntimeException("No key-value listener registered");
+				}
+				else if (!fetchFullKeyValueOnUpdate && cmdEventListener == null) {
+					throw new ReplicatorRuntimeException("No command listener registered");
+				}
+			}
+	
+			startReplicatorTask();
+	
+			isRunning.set(true);
+			
+			logger.info("replication started, status: " + slaveConnection.getReplicationType() + ", offset: "
+			        + slaveConnection.getInitReplicationOffset());
 		}
-
-		// authenticate
-		if (password != null) {
-			connection.authenticate(password);
+		catch(Exception e) {
+			// ensure connection is closed
+			closeConnections();
+			
+			// propagate the error
+			throw e;
 		}
-
-		String masterInfo = connection.getInfo("server");
-		int runIdBegin = masterInfo.indexOf("run_id:");
-		int runIdEnd = masterInfo.indexOf("\r\n", runIdBegin);
-		masterRunId = masterInfo.substring(runIdBegin + 7, runIdEnd);
-
-		// request psync
-		String syncStatus = connection.requestForPSync(masterRunId, initBacklogOffset + 1);
-		String[] statusStrTokens = syncStatus.split(" ");
-
-		String syncType = statusStrTokens[0];
-
-		if (syncType.startsWith("FULLRESYNC")) {
-			masterRunId = statusStrTokens[1];
-			initBacklogOffset = Long.parseLong(statusStrTokens[2]);
-		}
-
-		currentState = new ReplicatorState(masterRunId, initBacklogOffset);
-
-		scheduleReplOffsetTellerTask();
-		startReplicatorThread(syncType);
-
-		logger.info("replication started, status: " + syncStatus);
 	}
 
-	private void startReplicatorThread(String syncType) {
+	private void startReplicatorTask() {
 
-		// if psync successful
-		if (syncType.startsWith("CONTINUE")) {
+		// If partial
+		if (slaveConnection.getReplicationType() == ReplicationType.PARTIAL) {
 			startPartialReplicationTask();
 		}
 		// if partial sync failed. fullresync will be performed.
-		else if (syncType.startsWith("FULLRESYNC")) {
+		else {
 			startRDBReplicationTask();
 			startPartialReplicationTask();
 		}
 	}
 
 	private void startRDBReplicationTask() {
-		final Observable<Entry> rdbObservable = connection.getRdbDump();
-		ConnectableObservable<Entry> connectableRDBObservable = rdbObservable.publish();
-
-		connectableRDBObservable.subscribe(new RDBDataEventGenerator(rdbkvEventListener, currentState));
-
-		submittedReplicationTasks.add(singleThreadExecService.submit(connectInRunnable(connectableRDBObservable)));
+		
+		ConnectableObservable<Event<KeyValuePair>> connectableRDBObservable =
+		        slaveConnection.getRdbDump().subscribeOn(Schedulers.from(singleThreadExecService)).publish();
+		
+		if(rdbkvEventListener != null) {
+			connectableRDBObservable.subscribe(new EventRelay<Event<KeyValuePair>>(rdbkvEventListener));
+		}
+		
+		connectableRDBObservable.connect();
 	}
 
 	private void startPartialReplicationTask() {
-		final Observable<Reply<List<String>>> cmdEvents = connection.getCommands();
+		final Observable<Event<CommandArgsPair>> cmdEvents = slaveConnection.getCommands();
 
 		if (fetchFullKeyValueOnUpdate) {
-			final KeyUpdateObservableMapper keyUpdateObservableMapper = new KeyUpdateObservableMapper();
-			ConnectableObservable<Reply<KeyTypePair>> keyUpdates =
-			        cmdEvents.concatMap(new Func1<Reply<List<String>>, Observable<Reply<KeyTypePair>>>() {
-				        @Override
-				        public Observable<Reply<KeyTypePair>> call(Reply<List<String>> t) {
-					        return keyUpdateObservableMapper.map(t);
-				        }
 
-			        }).publish();
+			if (kvEventListener != null) {
+				// create another connection to read back values.
+				readConnection = ConnectionFactory.getInstance().create(host, port, password, soTimeout);
+				if (!readConnection.isConnected()) {
+					throw new ReplicatorRuntimeException("could not connect to host@" + host);
+				}
 
-			keyUpdates.subscribe(new KeyValueEventGenerator(kvEventListener, currentState, host, port, password,
-			        soTimeout));
+				ConnectableObservable<Event<KeyValuePair>> keyValueObs =
+				        cmdEvents.concatMap(new UpdatedKeyProducer()).map(new KeyValueReadBack(readConnection))
+				                .subscribeOn(Schedulers.from(singleThreadExecService)).publish();
 
-			submittedReplicationTasks.add(singleThreadExecService.submit(connectInRunnable(keyUpdates)));
+				// subscribe
+				keyValueObs.subscribe(new EventRelay<Event<KeyValuePair>>(kvEventListener));
+
+				keyValueObs.connect();
+			}
 		}
 		else {
-			ConnectableObservable<Reply<List<String>>> cmdEventsConnectableObs = cmdEvents.publish();
-			cmdEventsConnectableObs.subscribe(new CommandEventGenerator(cmdEventListener, currentState));
+			if (cmdEventListener != null) {
+				ConnectableObservable<Event<CommandArgsPair>> cmdEventsObs =
+				        cmdEvents.subscribeOn(Schedulers.from(singleThreadExecService)).publish();
 
-			submittedReplicationTasks.add(singleThreadExecService.submit(connectInRunnable(cmdEventsConnectableObs)));
+				cmdEventsObs.subscribe(new EventRelay<Event<CommandArgsPair>>(cmdEventListener));
+				cmdEventsObs.connect();
+			}
 		}
 	}
+	
+	private void closeConnections() {
+		if (slaveConnection != null) {
+			slaveConnection.close();
+		}
 
-	/**
-	 * schedule a task that tells the master its own replication offset every second
-	 */
-	private void scheduleReplOffsetTellerTask() {
-		Runnable offsetTellerTask = new Runnable() {
-			public void run() {
-				connection.sendReplAck(currentState.getReplicationOffset());
-			}
-		};
-
-		scheduledExecService.scheduleAtFixedRate(offsetTellerTask, 0, 3, TimeUnit.SECONDS);
-	}
-
-	private <T> Runnable connectInRunnable(final ConnectableObservable<T> observable) {
-		return new Runnable() {
-			public void run() {
-				observable.connect();
-			}
-		};
+		if (readConnection != null) {
+			readConnection.close();
+		}
 	}
 
 	/**
@@ -211,27 +211,16 @@ public class RedisReplicator {
 	 * @throws InterruptedException
 	 */
 	public void stop(int timeout) throws InterruptedException {
-		scheduledExecService.shutdownNow();
-		scheduledExecService.awaitTermination(timeout, TimeUnit.SECONDS);
+
+		singleThreadExecService.shutdownNow();
+		singleThreadExecService.awaitTermination(timeout, TimeUnit.MILLISECONDS);
 
 		// close the connection. it will also stop the worker thread
-		connection.close();
+		closeConnections();
 	}
 
-	public void joinOnReplicationTask() throws ExecutionException, InterruptedException {
-		for (Future<?> f : submittedReplicationTasks) {
-			f.get();
-		}
-	}
-	
-	public boolean isRunning()
-	{
-		boolean isRunning = true;
-		for (Future<?> f : submittedReplicationTasks) {
-			isRunning |= !(f.isCancelled() || f.isDone());
-		}
-		
-		return isRunning;
+	public boolean isRunning() {
+		return isRunning.get();
 	}
 
 	public String getPassword() {
@@ -270,27 +259,27 @@ public class RedisReplicator {
 		this.soTimeout = milliseconds;
 	}
 
-	public AbstractEventListener<CommandEvent> getCommandEventListener() {
+	public AbstractEventListener<Event<CommandArgsPair>> getCommandEventListener() {
 		return cmdEventListener;
 	}
 
-	public void setCommandEventListener(AbstractEventListener<CommandEvent> cmdEventListener) {
+	public void setCommandEventListener(AbstractEventListener<Event<CommandArgsPair>> cmdEventListener) {
 		this.cmdEventListener = cmdEventListener;
 	}
 
-	public AbstractEventListener<KeyValueEvent> getKeyValueEventListener() {
+	public AbstractEventListener<Event<KeyValuePair>> getKeyValueEventListener() {
 		return kvEventListener;
 	}
 
-	public void setKeyValueEventListener(AbstractEventListener<KeyValueEvent> kvEventListener) {
+	public void setKeyValueEventListener(AbstractEventListener<Event<KeyValuePair>> kvEventListener) {
 		this.kvEventListener = kvEventListener;
 	}
 
-	public AbstractEventListener<KeyValueEvent> getRdbKeyValueEventListener() {
+	public AbstractEventListener<Event<KeyValuePair>> getRdbKeyValueEventListener() {
 		return rdbkvEventListener;
 	}
 
-	public void setRdbKeyValueEventListener(AbstractEventListener<KeyValueEvent> rdbkvEventListener) {
+	public void setRdbKeyValueEventListener(AbstractEventListener<Event<KeyValuePair>> rdbkvEventListener) {
 		this.rdbkvEventListener = rdbkvEventListener;
 	}
 
