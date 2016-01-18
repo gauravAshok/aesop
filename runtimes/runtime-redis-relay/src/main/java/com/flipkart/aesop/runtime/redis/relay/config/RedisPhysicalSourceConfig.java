@@ -11,19 +11,19 @@ import com.linkedin.databus2.relay.config.PhysicalSourceStaticConfig.ChunkingTyp
 
 public class RedisPhysicalSourceConfig extends PhysicalSourceConfig {
 
-	private boolean fetchFullKeyValueOnUpdate;
+	private boolean fetchFullDataOnKeyUpdate;
 
 	public RedisPhysicalSourceConfig() {
 		super();
-		fetchFullKeyValueOnUpdate = false;
+		fetchFullDataOnKeyUpdate = false;
 	}
 
-	public boolean isFetchFullKeyValueOnUpdate() {
-		return fetchFullKeyValueOnUpdate;
+	public boolean isFetchFullDataOnKeyUpdate() {
+		return fetchFullDataOnKeyUpdate;
 	}
 
-	public void setFetchFullKeyValueOnUpdate(boolean fetchFullKeyValueOnUpdate) {
-		this.fetchFullKeyValueOnUpdate = fetchFullKeyValueOnUpdate;
+	public void setFetchFullDataOnKeyUpdate(boolean fetchFullDataOnKeyUpdate) {
+		this.fetchFullDataOnKeyUpdate = fetchFullDataOnKeyUpdate;
 	}
 
 	private LogicalSourceConfig addOrGetSource(int index) {
@@ -105,6 +105,6 @@ public class RedisPhysicalSourceConfig extends PhysicalSourceConfig {
 	                                            this.getXmlVersion(),
 	                                            this.getXmlEncoding(),
 	                                            this.getReplBitSetter().build(),
-	                                            fetchFullKeyValueOnUpdate);
+	                                            fetchFullDataOnKeyUpdate);
 	  }
 }

@@ -68,7 +68,7 @@ public class RedisEventProducer<T extends GenericRecord> extends AbstractEventPr
 		        RedisPhysicalSourceConfig.class.isAssignableFrom(this.physicalSourceConfig.getClass()),
 		        "PhysicalSourceConfig must be of type RedisPhysicalSourceConfig");
 		RedisPhysicalSourceConfig config = (RedisPhysicalSourceConfig) this.physicalSourceConfig;
-		if (config.isFetchFullKeyValueOnUpdate()) {
+		if (config.isFetchFullDataOnKeyUpdate()) {
 			Assert.notNull(kvEventMapper, "keyValueEvent mapper is null");
 		}
 		else {
@@ -96,16 +96,16 @@ public class RedisEventProducer<T extends GenericRecord> extends AbstractEventPr
 		replicator.setInitBacklogOffset(sinceSCN);
 		replicator.setSoTimeout(10000);
 
-		boolean fetchFullDataOnUpdate =
-		        ((RedisPhysicalSourceStaticConfig) physicalSourceStaticConfig).isFetchFullKeyValueOnUpdate();
+		boolean fetchFullDataOnKeyUpdate =
+		        ((RedisPhysicalSourceStaticConfig) physicalSourceStaticConfig).isFetchFullDataOnKeyUpdate();
 
-		if (fetchFullDataOnUpdate) {
+		if (fetchFullDataOnKeyUpdate) {
 			kvEventListener =
 			        new RedisEventListener<T, KeyValuePair>(dbusEventsStatisticsCollector, schemaRegistryService,
 			                this.sinceSCN, scnGenerator, this, kvEventMapper);
 
 			replicator.setKeyValueEventListener(kvEventListener);
-			replicator.setFetchFullKeyValueOnUpdate(fetchFullDataOnUpdate);
+			replicator.setFetchFullDataOnKeyUpdate(fetchFullDataOnKeyUpdate);
 		}
 		else {
 			cmdEventListener =

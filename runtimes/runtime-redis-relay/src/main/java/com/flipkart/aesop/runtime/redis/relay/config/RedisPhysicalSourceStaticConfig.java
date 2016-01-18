@@ -8,7 +8,7 @@ import com.linkedin.databus2.relay.config.ReplicationBitSetterStaticConfig;
 
 public class RedisPhysicalSourceStaticConfig extends PhysicalSourceStaticConfig {
 
-	private final boolean fetchFullKeyValueOnUpdate;
+	private final boolean fetchFullDataOnKeyUpdate;
 	
 	public RedisPhysicalSourceStaticConfig(String name,
 										int id,
@@ -33,21 +33,21 @@ public class RedisPhysicalSourceStaticConfig extends PhysicalSourceStaticConfig 
 										String xmlVersion,
 										String xmlEncoding,
 										ReplicationBitSetterStaticConfig replicationBitSetter,
-										boolean fetchFullKeyValueOnUpdate) {
+										boolean fetchFullDataOnKeyUpdate) {
 	    
 		super(name, id, uri, resourceKey, sources, role, slowSourceQueryThreshold, restartScnOffset, errorRetries,
 	            chunkingType, txnsPerChunk, scnChunkSize, chunkedScnThreshold, maxScnDelayMs, eventRatePerSec,
 	            maxThrottleDurationInSecs, dbusEventBuffer, largestEventSizeInBytes, largestWindowSizeInBytes,
 	            errorOnMissingFields, xmlVersion, xmlEncoding, replicationBitSetter);
-		this.fetchFullKeyValueOnUpdate = fetchFullKeyValueOnUpdate;
+		this.fetchFullDataOnKeyUpdate = fetchFullDataOnKeyUpdate;
 	}
 
-	public boolean isFetchFullKeyValueOnUpdate() {
-		return fetchFullKeyValueOnUpdate;
+	public boolean isFetchFullDataOnKeyUpdate() {
+		return fetchFullDataOnKeyUpdate;
 	}
 	
 	@Override
 	public String toString() {
-		return super.toString() + ";fetchFullKey=" + fetchFullKeyValueOnUpdate;
+		return super.toString() + ";fetchFullKey=" + fetchFullDataOnKeyUpdate;
 	}
 }

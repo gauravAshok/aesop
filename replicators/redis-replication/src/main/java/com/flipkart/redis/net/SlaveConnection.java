@@ -1,5 +1,6 @@
 package com.flipkart.redis.net;
 
+import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -8,6 +9,7 @@ import redis.clients.jedis.exceptions.JedisDataException;
 import rx.Observable;
 import rx.Subscriber;
 import rx.Observable.OnSubscribe;
+import rx.functions.Func2;
 
 import com.flipkart.redis.event.Event;
 import com.flipkart.redis.event.EventHeader;
@@ -19,10 +21,9 @@ import com.flipkart.redis.net.rdb.RDBParser;
 public class SlaveConnection extends Connection {
 
 	public static enum ReplicationType {
-		FULLRESYNC,
-		PARTIAL
+		FULLRESYNC, PARTIAL
 	}
-	
+
 	private static String defaultMasterID = "?";
 	private static long defaultReplicationOffset = -1;
 
@@ -30,7 +31,7 @@ public class SlaveConnection extends Connection {
 	private long initReplicationOffset = defaultReplicationOffset;
 	private AtomicLong currReplicationOffset = new AtomicLong();
 	private ReplicationType replicationType;
-	
+
 	private long minPingAckDuration = 1000;
 	private long lastPingTimestamp = 0;
 
@@ -47,7 +48,8 @@ public class SlaveConnection extends Connection {
 	}
 
 	protected String sendLocalPort() {
-		return sendCommand(Command.REPLCONF, "listening-port", "" + getSocket().getLocalPort()).getStatusCodeReply().object;
+		return sendCommand(Command.REPLCONF, "listening-port", "" + getSocket().getLocalPort())
+				.getStatusCodeReply().object;
 	}
 
 	public String requestForPSync() {
@@ -64,7 +66,7 @@ public class SlaveConnection extends Connection {
 
 		// notify master server this connections port.
 		sendLocalPort();
-		
+
 		// request psync
 		sendCommand(Command.PSYNC, masterRunId, String.valueOf(initReplicationOffset));
 
@@ -74,8 +76,7 @@ public class SlaveConnection extends Connection {
 		if (statusTokens[0].startsWith("FULLRESYNC")) {
 			this.initReplicationOffset = Long.parseLong(statusTokens[2]);
 			replicationType = ReplicationType.FULLRESYNC;
-		}
-		else {
+		} else {
 			this.initReplicationOffset = initReplicationOffset - 1;
 			replicationType = ReplicationType.PARTIAL;
 		}
@@ -104,11 +105,10 @@ public class SlaveConnection extends Connection {
 						// update current replication offset.
 						currReplicationOffset.getAndSet(entry.streamOffset);
 
-						Event<KeyValuePair> evt =
-						        new Event<KeyValuePair>(new KeyValuePair(entry.key, entry.value,
-						                Protocol.rdbInt2DataTypeMapping[entry.type], entry.database), createHeader());
-						
-						if(!t.isUnsubscribed()) {
+						Event<KeyValuePair> evt = new Event<KeyValuePair>(new KeyValuePair(entry.key, entry.value,
+								Protocol.rdbInt2DataTypeMapping[entry.type], entry.database), createHeader());
+
+						if (!t.isUnsubscribed()) {
 							t.onNext(evt);
 						}
 						entry = rdbParser.next();
@@ -117,14 +117,13 @@ public class SlaveConnection extends Connection {
 					byte[] checksum = new byte[8];
 					getInputStream().read(checksum, 0, 8);
 
-					if(!t.isUnsubscribed()) {
+					if (!t.isUnsubscribed()) {
 						t.onCompleted();
 					}
-				}
-				catch (Exception e) {
+				} catch (Exception e) {
 					// error has occurred while parsing the stream. stop
 					// emitting any more events
-					if(!t.isUnsubscribed()) {
+					if (!t.isUnsubscribed()) {
 						t.onError(e);
 					}
 				}
@@ -139,10 +138,11 @@ public class SlaveConnection extends Connection {
 		Observable<Event<CommandArgsPair>> cmdEvents = Observable.create(new OnSubscribe<Event<CommandArgsPair>>() {
 			@Override
 			public void call(Subscriber<? super Event<CommandArgsPair>> t) {
-				
-				// set current offset to init offset because the replication will start from this point
+
+				// set current offset to init offset because the replication
+				// will start from this point
 				currReplicationOffset.getAndSet(initReplicationOffset);
-				
+
 				try {
 					while (true) {
 						Reply<List<String>> reply = getMultiBulkReplySafe();
@@ -151,37 +151,57 @@ public class SlaveConnection extends Connection {
 						currReplicationOffset.getAndAdd(reply.bytesRead);
 
 						final Command command = Command.valueOf(reply.object.get(0).toUpperCase());
-						
+
 						// if command is PING, send replication ack to master
-						if(command.equals(Command.PING)) {
+						if (command.equals(Command.PING)) {
 							processPing();
 							continue;
 						}
-						
+
 						// create command event
 						List<String> args = reply.object.subList(1, reply.object.size());
 
-						Event<CommandArgsPair> cmdEvent =
-						        new Event<CommandArgsPair>(new CommandArgsPair(reply.object.get(0), command
-						                .keysUpdated(reply.object), args), createHeader());
+						Event<CommandArgsPair> cmdEvent = new Event<CommandArgsPair>(
+								new CommandArgsPair(reply.object.get(0), command.keysUpdated(reply.object), args),
+								createHeader());
 
 						t.onNext(cmdEvent);
 					}
-				}
-				catch (JedisConnectionException e) {
+				} catch (JedisConnectionException e) {
 					t.onError(e);
-				}
-				catch (JedisDataException e) {
+				} catch (JedisDataException e) {
 					t.onError(e);
 				}
 			}
 		});
-		return cmdEvents;
+		return ignoreTimeoutExceptions(cmdEvents);
 	}
-	
+
+	private <T> Observable<T> ignoreTimeoutExceptions(Observable<T> observable) {
+		return observable.retry(new Func2<Integer, Throwable, Boolean>() {
+
+			@Override
+			public Boolean call(Integer retryCount, Throwable exception) {
+
+				//get the base cause which threw the exception
+				Throwable err = exception;
+				while(err != null && err.getCause() != null) {
+					err = err.getCause();
+				}
+
+				// If socket timeout occured, ignore it and continue the observable.
+				if(err.getClass().equals(SocketTimeoutException.class)) {
+					return true;
+				}
+				
+				return false;
+			}
+		});
+	}
+
 	private void processPing() {
 		long curTimestamp = System.currentTimeMillis();
-		if(curTimestamp - lastPingTimestamp > minPingAckDuration) {
+		if (curTimestamp - lastPingTimestamp > minPingAckDuration) {
 			// process ping
 			sendReplAck();
 			lastPingTimestamp = curTimestamp;

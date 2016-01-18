@@ -5,9 +5,9 @@ import com.linkedin.databus2.relay.config.LogicalSourceStaticConfig;
 public class RedisLogicalSourceStaticConfig extends LogicalSourceStaticConfig {
 
 	public static class LogicalGroupCriteria {
-		public final String prefix;
-		public final String suffix;
-		public final String contains;
+		public String prefix;
+		public String suffix;
+		public String contains;
 		
 		public LogicalGroupCriteria()
 		{
@@ -26,6 +26,30 @@ public class RedisLogicalSourceStaticConfig extends LogicalSourceStaticConfig {
 		 */
 		public boolean test(String str) {
 			return str.startsWith(prefix) && str.endsWith(suffix) && str.contains(contains);
+		}
+		
+		public String getPrefix() {
+			return prefix;
+		}
+
+		public String getSuffix() {
+			return suffix;
+		}
+		
+		public String getContains() {
+			return contains;
+		}
+		
+		public void setPrefix(String prefix) {
+			this.prefix = prefix;
+		}
+		
+		public void setSuffix(String suffix) {
+			this.suffix = suffix;
+		}
+		
+		public void setContains(String contains) {
+			this.contains = contains;
 		}
 	}
 	

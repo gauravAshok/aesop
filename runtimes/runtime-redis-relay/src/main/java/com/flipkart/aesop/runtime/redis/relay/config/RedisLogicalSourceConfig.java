@@ -7,13 +7,13 @@ import com.linkedin.databus2.relay.config.LogicalSourceStaticConfig;
 
 public class RedisLogicalSourceConfig extends LogicalSourceConfig {
 
-	private RedisLogicalSourceStaticConfig.LogicalGroupCriteria groupCriteria;
+	LogicalGroupCriteria groupCriteria = new LogicalGroupCriteria();
 
-	public RedisLogicalSourceStaticConfig.LogicalGroupCriteria getGroupCriteria() {
+	public LogicalGroupCriteria getGroupCriteria() {
 		return groupCriteria;
 	}
 
-	public void setGroupCriteria(RedisLogicalSourceStaticConfig.LogicalGroupCriteria groupCriteria) {
+	public void setGroupCriteria(LogicalGroupCriteria groupCriteria) {
 		this.groupCriteria = groupCriteria;
 	}
 
@@ -33,5 +33,17 @@ public class RedisLogicalSourceConfig extends LogicalSourceConfig {
 												  this.getChunkedTxnQueryHints(),
 												  this.getChunkedScnQueryHints(),
 												  groupCriteria);
+	}
+	
+	public void setKeyPrefix(String prefix) {
+		this.groupCriteria.setPrefix(prefix);
+	}
+	
+	public void setKeySuffix(String suffix) {
+		this.groupCriteria.setSuffix(suffix);
+	}
+	
+	public void setKeyContains(String contains) {
+		this.groupCriteria.setContains(contains);
 	}
 }

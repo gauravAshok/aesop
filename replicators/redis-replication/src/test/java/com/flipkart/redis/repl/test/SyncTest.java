@@ -65,7 +65,7 @@ public class SyncTest {
 		replicator.setKeyValueEventListener(new TestkvListener());
 		//replicator.setRdbKeyValueEventListener(new TestkvListener());
 		replicator.setSoTimeout(7000);
-		replicator.setFetchFullKeyValueOnUpdate(true);
+		replicator.setFetchFullDataOnKeyUpdate(true);
 		//try partial sync
 		
 		//replicator.setInitBacklogOffset(14574);

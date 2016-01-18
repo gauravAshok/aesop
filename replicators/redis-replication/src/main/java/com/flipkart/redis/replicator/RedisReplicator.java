@@ -65,7 +65,7 @@ public class RedisReplicator {
 	/**
 	 * flag to enable fetching full value for the keys using another connection.
 	 */
-	private boolean fetchFullKeyValueOnUpdate = false;
+	private boolean fetchFullDataOnKeyUpdate = false;
 
 	private AtomicBoolean isRunning = new AtomicBoolean(false);
 
@@ -113,10 +113,10 @@ public class RedisReplicator {
 			}
 	
 			if (slaveConnection.getReplicationType() == ReplicationType.PARTIAL) {
-				if (fetchFullKeyValueOnUpdate && kvEventListener == null) {
+				if (fetchFullDataOnKeyUpdate && kvEventListener == null) {
 					throw new ReplicatorRuntimeException("No key-value listener registered");
 				}
-				else if (!fetchFullKeyValueOnUpdate && cmdEventListener == null) {
+				else if (!fetchFullDataOnKeyUpdate && cmdEventListener == null) {
 					throw new ReplicatorRuntimeException("No command listener registered");
 				}
 			}
@@ -165,7 +165,7 @@ public class RedisReplicator {
 	private void startPartialReplicationTask() {
 		final Observable<Event<CommandArgsPair>> cmdEvents = slaveConnection.getCommands();
 
-		if (fetchFullKeyValueOnUpdate) {
+		if (fetchFullDataOnKeyUpdate) {
 
 			if (kvEventListener != null) {
 				// create another connection to read back values.
@@ -283,11 +283,11 @@ public class RedisReplicator {
 		this.rdbkvEventListener = rdbkvEventListener;
 	}
 
-	public boolean isFetchFullKeyValueOnUpdate() {
-		return fetchFullKeyValueOnUpdate;
+	public boolean isFetchFullDataOnKeyUpdate() {
+		return fetchFullDataOnKeyUpdate;
 	}
 
-	public void setFetchFullKeyValueOnUpdate(boolean fetchFullKeyValueOnUpdate) {
-		this.fetchFullKeyValueOnUpdate = fetchFullKeyValueOnUpdate;
+	public void setFetchFullDataOnKeyUpdate(boolean fetchFullDataOnKeyUpdate) {
+		this.fetchFullDataOnKeyUpdate = fetchFullDataOnKeyUpdate;
 	}
 }
