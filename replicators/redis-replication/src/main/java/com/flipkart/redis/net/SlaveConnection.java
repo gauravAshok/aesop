@@ -135,13 +135,13 @@ public class SlaveConnection extends Connection {
 
 	public Observable<Event<CommandArgsPair>> getCommands() {
 
+		// set current offset to init offset because the replication
+		// will start from this point
+		currReplicationOffset.getAndSet(initReplicationOffset);
+
 		Observable<Event<CommandArgsPair>> cmdEvents = Observable.create(new OnSubscribe<Event<CommandArgsPair>>() {
 			@Override
 			public void call(Subscriber<? super Event<CommandArgsPair>> t) {
-
-				// set current offset to init offset because the replication
-				// will start from this point
-				currReplicationOffset.getAndSet(initReplicationOffset);
 
 				try {
 					while (true) {
@@ -183,17 +183,18 @@ public class SlaveConnection extends Connection {
 			@Override
 			public Boolean call(Integer retryCount, Throwable exception) {
 
-				//get the base cause which threw the exception
+				// get the base cause which threw the exception
 				Throwable err = exception;
-				while(err != null && err.getCause() != null) {
+				while (err != null && err.getCause() != null) {
 					err = err.getCause();
 				}
 
-				// If socket timeout occured, ignore it and continue the observable.
-				if(err.getClass().equals(SocketTimeoutException.class)) {
+				// If socket timeout occured, ignore it and continue the
+				// observable.
+				if (err.getClass().equals(SocketTimeoutException.class)) {
 					return true;
 				}
-				
+
 				return false;
 			}
 		});

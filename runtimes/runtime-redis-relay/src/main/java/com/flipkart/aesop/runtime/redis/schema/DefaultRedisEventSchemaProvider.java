@@ -18,7 +18,6 @@ public class DefaultRedisEventSchemaProvider {
 	private String defaultEventSchema = null;
 
 	private VersionedSchemaSetProvider schemaProvider = new ResourceVersionedSchemaSetProvider(null);;
-	private static Parser schemaParser = new Parser();
 
 	public DefaultRedisEventSchemaProvider()
 	        throws NoSuchSchemaException, DatabusException {
@@ -32,7 +31,7 @@ public class DefaultRedisEventSchemaProvider {
 	}
 
 	public Schema getDefaultEventSchema(String namespace, String name) {
-		return schemaParser.parse(defaultEventSchema.replace(namespacePlaceholder, namespace).replace(
+		return new Parser().parse(defaultEventSchema.replace(namespacePlaceholder, namespace).replace(
 		        namePlaceholder, name));
 	}
 }

@@ -94,7 +94,7 @@ public class RedisEventProducer<T extends GenericRecord> extends AbstractEventPr
 
 		replicator = new RedisReplicator(uri);
 		replicator.setInitBacklogOffset(sinceSCN);
-		replicator.setSoTimeout(10000);
+		replicator.setSoTimeout(5000);
 
 		boolean fetchFullDataOnKeyUpdate =
 		        ((RedisPhysicalSourceStaticConfig) physicalSourceStaticConfig).isFetchFullDataOnKeyUpdate();
