@@ -41,15 +41,14 @@ public class RedisEventListener<T extends GenericRecord, U extends AbstractData>
 
 	private static final Logger LOGGER = LogFactory.getLogger(RedisEventListener.class);
 	
-	DbusEventBufferAppendable eventBuffer;
-	MaxSCNReaderWriter maxScnReaderWriter;
-    DbusEventsStatisticsCollector dbusEventsStatisticsCollector;
-    SchemaRegistryService schemaRegistryService;
-    AtomicLong sinceSCN; 
-    SCNGenerator scnGenerator;
-    RedisEventProducer<T> redisEventProducer;
-    AbstractEventMapper<T, U> eventMapper;
-    
+	private DbusEventBufferAppendable eventBuffer;
+	private MaxSCNReaderWriter maxScnReaderWriter;
+	private DbusEventsStatisticsCollector dbusEventsStatisticsCollector;
+	private SchemaRegistryService schemaRegistryService;
+	private AtomicLong sinceSCN; 
+	private SCNGenerator scnGenerator;
+	private RedisEventProducer<T> redisEventProducer;
+	private AbstractEventMapper<T, U> eventMapper;
 
 	public RedisEventListener(DbusEventsStatisticsCollector dbusEventsStatisticsCollector, SchemaRegistryService schemaRegistryService,
             AtomicLong sinceSCN, SCNGenerator scnGenerator, RedisEventProducer<T> redisEventProducer, AbstractEventMapper<T, U> eventMapper) {

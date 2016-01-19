@@ -118,7 +118,7 @@ public class RedisRelayFactory extends DefaultRelayFactory {
 		        new DefaultRelay(staticConfigList[0], pStaticConfigs,
 		                SourceIdNameRegistry.createFromIdNamePairs(staticConfigList[0].getSourceIds()),
 		                schemaRegistryService);
-
+		
 		/*
 		 * Commenting out this line. The {@link #getMaxScnReaderWriters() getMaxScnReaderWriters} is not used anywhere.
 		 * relay.setMaxScnReaderWriters(this.maxScnReaderWriters.get(this.producerRegistrationList.get(0)));

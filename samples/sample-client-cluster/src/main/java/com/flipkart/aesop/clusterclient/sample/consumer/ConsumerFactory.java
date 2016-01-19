@@ -12,15 +12,22 @@
  */
 package com.flipkart.aesop.clusterclient.sample.consumer;
 
-import com.flipkart.aesop.sample.client.common.consumer.ConsoleAppenderEventConsumer;
+import com.linkedin.databus.client.consumer.AbstractDatabusCombinedConsumer;
+import com.linkedin.databus.client.pub.ConsumerCallbackResult;
 import com.linkedin.databus.client.pub.DatabusCombinedConsumer;
 import com.linkedin.databus.client.pub.DbusClusterConsumerFactory;
 import com.linkedin.databus.client.pub.DbusClusterInfo;
+import com.linkedin.databus.client.pub.DbusEventDecoder;
 import com.linkedin.databus.client.pub.DbusPartitionInfo;
+import com.linkedin.databus.core.DbusEvent;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+
+import org.apache.avro.generic.GenericRecord;
+import org.trpr.platform.core.impl.logging.LogFactory;
+import org.trpr.platform.core.spi.logging.Logger;
 
 /**
  * <code>ConsumerFactory</code> is a sub-type of {@link DbusClusterConsumerFactory} crates consumers
@@ -29,6 +36,27 @@ import java.util.List;
  */
 public class ConsumerFactory implements DbusClusterConsumerFactory
 {
+	
+	public static class ConsoleAppenderEventConsumer extends AbstractDatabusCombinedConsumer
+	{
+	    public static final Logger LOGGER = LogFactory.getLogger(ConsoleAppenderEventConsumer.class);
+
+	    
+	    public ConsumerCallbackResult onDataEvent(DbusEvent event, DbusEventDecoder eventDecoder)
+		{
+	    	GenericRecord rec = eventDecoder.getGenericRecord(event, null);
+			LOGGER.info("Event captured from relay: " + rec.toString());
+			return ConsumerCallbackResult.SUCCESS;
+		}
+	    
+//	    public ConsumerCallbackResult processEvent(MysqlBinLogEvent mysqlBinLogEvent)
+//	    {
+//	        LOGGER.debug("Event : " + mysqlBinLogEvent.toString());
+//	        return ConsumerCallbackResult.SUCCESS;
+//	    }
+	}
+
+	
 	@Override
 	public Collection<DatabusCombinedConsumer> createPartitionedConsumers(DbusClusterInfo clusterInfo,
 	        DbusPartitionInfo partitionInfo)

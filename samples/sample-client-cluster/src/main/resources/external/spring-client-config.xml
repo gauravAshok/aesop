@@ -16,7 +16,7 @@
 					</property>
 					<property name="logicalSources">
 						<list value-type="java.lang.String">
-							<value>com.flipkart.aesop.events.ortest.Person</value>
+							<value>pz.or_test.person</value>
 						</list>
 					</property>
 				</bean>
@@ -49,7 +49,7 @@
 					<property name="relayPort" value="25021" />
 					<property name="relayLogicalSourceNames">
 						<list value-type="java.lang.String">
-							<value>com.flipkart.aesop.events.ortest.Person</value>
+							<value>pz.or_test.person</value>
 						</list>
 					</property>
 				</bean>
@@ -61,7 +61,7 @@
 					<property name="id" value="1" />
 					<property name="clusterName" value="Person_Cluster" />
 					<property name="zkAddr" value="localhost:2181" />
-					<property name="numPartitions" value="2" />
+					<property name="numPartitions" value="1" />
 					<property name="quorum" value="1" />
 					<property name="zkSessionTimeoutMs" value="3000" />
 					<property name="zkConnectionTimeoutMs" value="3000" />

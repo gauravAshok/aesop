@@ -7,7 +7,7 @@
   	</appender>
   	
   	<appender name="FILE" class="ch.qos.logback.core.FileAppender">
-    	<file>/tmp/aesop/sample-mysql-relay.log</file>
+    	<file>/tmp/aesop/sample-redis-relay.log</file>
     	<append>true</append>
     <encoder>
       <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %class{36}.%M %L  %logger{36} - %msg%n</pattern>

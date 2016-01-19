@@ -16,7 +16,7 @@
                             <property name="singleton" value="true"/>
                             <property name="properties">
                                 <props>
-                                    <prop key="databus.relay.dataSources.sequenceNumbersHandler.file.initVal">0</prop>
+                                    <prop key="databus.relay.dataSources.sequenceNumbersHandler.file.initVal">46659</prop>
                                 </props>
                             </property>
                         </bean>
@@ -31,15 +31,17 @@
     <bean id="redisPersonProducer" class="com.flipkart.aesop.runtime.redis.producer.RedisEventProducer">
     	<property name="physicalSourceConfig" ref="physicalSourceConfig"/>
     	<property name="kvEventMapper" ref="keyValueEventMapper"/>
+    	<property name="commandEventMapper" ref="commandEventMapper"/>
     </bean>
     
     <bean id="keyValueEventMapper" class="com.flipkart.aesop.runtime.redis.mapper.KeyValueEventMapper"/>
+    <bean class="com.flipkart.aesop.runtime.redis.mapper.CommandEventMapper" id="commandEventMapper"/>
     
     <bean id="physicalSourceConfig" class="com.flipkart.aesop.runtime.redis.relay.config.RedisPhysicalSourceConfig">
         <property name="id" value="1"/>
         <property name="name" value="personPhysicalSource"/>
         <property name="uri" value="redis://localhost:6379"/>
-        <property name="fetchFullKeyValueOnUpdate" value="true"/>
+        <property name="fetchFullDataOnKeyUpdate" value="true"/>
         <property name="sources">
             <list>
                 <bean id="logicalSourceConfig" class="com.flipkart.aesop.runtime.redis.relay.config.RedisLogicalSourceConfig">

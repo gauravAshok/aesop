@@ -19,10 +19,15 @@
 
     <distributionManagement>
         <repository>
-            <id>clojars</id>
-            <name>Clojars repository</name>
-            <url>https://clojars.org/repo</url>
+            <id>fk-artifactory</id>
+            <name>Flipkart Artifactory</name>
+            <url>http://artifactory.nm.flipkart.com:8081/artifactory/libs-releases-local</url>
         </repository>
+        <snapshotRepository>
+            <id>fk-artifactory</id>
+            <name>Flipkart Artifactory</name>
+            <url>http://artifactory.nm.flipkart.com:8081/artifactory/libs-snapshots-local</url>
+        </snapshotRepository>
     </distributionManagement>
 
     <scm>
@@ -55,6 +60,14 @@
             <name>repo.fusesource.com</name>
             <url>http://repo.fusesource.com/maven2/</url>
             <layout>default</layout>
+        </repository>
+        <repository>
+            <id>restlet-releases</id>
+            <url>http://maven.restlet.org/</url>
+        </repository>
+        <repository>
+            <id>central</id>
+            <url>http://repo1.maven.org/maven2/</url>
         </repository>
     </repositories>
 
