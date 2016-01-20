@@ -16,7 +16,7 @@
 					</property>
 					<property name="logicalSources">
 						<list value-type="java.lang.String">
-							<value>pz.or_test.person</value>
+							<value>person</value>
 						</list>
 					</property>
 				</bean>
@@ -49,7 +49,7 @@
 					<property name="relayPort" value="25021" />
 					<property name="relayLogicalSourceNames">
 						<list value-type="java.lang.String">
-							<value>pz.or_test.person</value>
+							<value>person</value>
 						</list>
 					</property>
 				</bean>

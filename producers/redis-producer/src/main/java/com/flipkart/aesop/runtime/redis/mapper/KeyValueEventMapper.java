@@ -20,12 +20,12 @@ public class KeyValueEventMapper<T extends GenericRecord> implements AbstractEve
 		GenericRecord record = new GenericData.Record(schema);
 		GenericRecord keyValuePair = new GenericData.Record(keyvalueSchema);
 		
-		keyValuePair.put("key", event.getKey());
 		keyValuePair.put("value", event.getData().getValue());
 		keyValuePair.put("database", event.getData().getDatabase());
 		keyValuePair.put("datatype", event.getData().getType().name());
 		
 		record.put("keyvalue", keyValuePair);
+		record.put("key", event.getKey());
 		record.put("command", null);
 		
 		LOGGER.debug("Mapped event to a record : {}", record);

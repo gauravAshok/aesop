@@ -2,7 +2,12 @@
   "namespace": "__NAMESPACE__",
   "type": "record",
   "name": "__NAME__",
+  "meta" : "dbFieldName=__NAME__;pk=key;",
   "fields": [
+    {
+      "name": "key",
+      "type": "string"
+    },
     {
       "name": "command",
       "type": [
@@ -24,7 +29,6 @@
           "type": "record",
           "name": "com.flipkart.redis.KeyValueEvent",
           "fields": [
-            { "name": "key", "type": "string" },
             { "name": "datatype", "type": "string" },
             { "name": "database", "type": "int" },
             { "name": "value", "type": [ { "type": "array", "items": "string" }, { "type": "map", "values": "string" }, "string", "null" ] }

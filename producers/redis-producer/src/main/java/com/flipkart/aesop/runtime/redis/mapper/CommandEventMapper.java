@@ -25,6 +25,7 @@ public class CommandEventMapper<T extends GenericRecord> implements AbstractEven
 		cmd.put("args", event.getData().getArgs());
 		
 		record.put("command", cmd);
+		record.put("key", event.getKey());
 		record.put("keyvalue", null);
 		
 		LOGGER.debug("Mapped event to a record : {}", record);

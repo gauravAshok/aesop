@@ -16,7 +16,7 @@
                             <property name="singleton" value="true"/>
                             <property name="properties">
                                 <props>
-                                    <prop key="databus.relay.dataSources.sequenceNumbersHandler.file.initVal">46659</prop>
+                                    <prop key="databus.relay.dataSources.sequenceNumbersHandler.file.initVal">74944</prop>
                                 </props>
                             </property>
                         </bean>
@@ -46,7 +46,7 @@
             <list>
                 <bean id="logicalSourceConfig" class="com.flipkart.aesop.runtime.redis.relay.config.RedisLogicalSourceConfig">
                     <property name="id" value="41"/>
-                    <property name="name" value="com.flipkart.aesop.events.ortest.Person"/>
+                    <property name="name" value="person"/>
                     <property name="uri" value="or_test.person"/>
                     <property name="partitionFunction" value="constant:1"/>
                 </bean>
