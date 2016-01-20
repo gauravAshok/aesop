@@ -30,6 +30,10 @@ public class SlaveConnection extends Connection {
 	private String masterRunId = defaultMasterID;
 	private long initReplicationOffset = defaultReplicationOffset;
 	private AtomicLong currReplicationOffset = new AtomicLong();
+	
+	// to maintain replication offset while recovering from exceptions 
+	private long currReplicationOffsetAfterRetry = defaultReplicationOffset;
+	
 	private ReplicationType replicationType;
 
 	private long minPingAckDuration = 1000;
@@ -80,6 +84,8 @@ public class SlaveConnection extends Connection {
 			this.initReplicationOffset = initReplicationOffset - 1;
 			replicationType = ReplicationType.PARTIAL;
 		}
+		
+		currReplicationOffsetAfterRetry = this.initReplicationOffset;
 
 		return status;
 	}
@@ -135,14 +141,14 @@ public class SlaveConnection extends Connection {
 
 	public Observable<Event<CommandArgsPair>> getCommands() {
 
-		// set current offset to init offset because the replication
-		// will start from this point
-		currReplicationOffset.getAndSet(initReplicationOffset);
-
 		Observable<Event<CommandArgsPair>> cmdEvents = Observable.create(new OnSubscribe<Event<CommandArgsPair>>() {
 			@Override
 			public void call(Subscriber<? super Event<CommandArgsPair>> t) {
 
+				// set current offset to init offset because the replication
+				// will start from this point.
+				currReplicationOffset.getAndSet(currReplicationOffsetAfterRetry);
+				
 				try {
 					while (true) {
 						Reply<List<String>> reply = getMultiBulkReplySafe();
@@ -192,6 +198,9 @@ public class SlaveConnection extends Connection {
 				// If socket timeout occured, ignore it and continue the
 				// observable.
 				if (err.getClass().equals(SocketTimeoutException.class)) {
+
+					// update the currRepliction Offset so that the offset remains correct while resubscribing
+					currReplicationOffsetAfterRetry = currReplicationOffset.get();
 					return true;
 				}
 
